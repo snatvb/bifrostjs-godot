@@ -10,7 +10,7 @@ pub struct JsResolver;
 pub struct JsLoader;
 
 fn normalize_virtual_path(path: &str) -> (Option<String>, String) {
-    let (protocol, rest) = path.rsplit_once("://").unwrap_or_else(|| ("", path));
+    let (protocol, rest) = path.rsplit_once("://").unwrap_or(("", path));
     let mut segs = Vec::new();
     for c in Path::new(rest).components() {
         match c {

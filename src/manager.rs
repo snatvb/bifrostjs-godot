@@ -3,7 +3,6 @@ use std::time::Instant;
 
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
-use rquickjs::loader::ModuleLoader;
 
 use crate::bifrost_js_module::BifrostModule;
 use crate::node::create_godot_js_proxy;
@@ -45,12 +44,14 @@ impl JsRuntimeManager {
 
         let context = js::Context::full(&runtime).expect("JS Context failure");
 
-        context.with(|ctx| {
+        let manager_ctx = self.context.clone();
+        context.with(move |ctx| {
             let res = (|| -> js::Result<()> {
                 let globals = ctx.globals();
                 let console_obj = gdjs::console::create(&ctx);
                 globals.set("console", console_obj)?;
-                js::Module::evaluate_def::<BifrostModule, _>(ctx.clone(), "bifrostjs")?;
+                ctx.store_userdata(manager_ctx)?;
+                js::Module::declare_def::<BifrostModule, _>(ctx.clone(), "bifrostjs")?;
                 Ok(())
             })();
             gdjs::util::handle_error(&ctx, &res);

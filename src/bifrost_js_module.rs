@@ -1,8 +1,8 @@
-use gdjs::engine::create_engine;
 use js::module::Declarations;
 use js::module::ModuleDef;
 use rquickjs::module::Exports;
 
+use crate::engine::create_engine;
 use crate::prelude::*;
 
 pub struct BifrostModule;

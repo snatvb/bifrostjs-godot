@@ -1,4 +1,5 @@
 mod bifrost_js_module;
+mod engine;
 mod js_importer;
 mod manager;
 mod manager_context;

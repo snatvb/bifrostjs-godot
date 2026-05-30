@@ -82,7 +82,7 @@ impl JsManagerContext {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, js::JsLifetime)]
 pub struct ManagerCtxRef(Rc<RefCell<JsManagerContext>>);
 
 impl ManagerCtxRef {
