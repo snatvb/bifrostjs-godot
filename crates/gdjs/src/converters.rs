@@ -1,3 +1,4 @@
+use crate::colors::*;
 use crate::prelude::*;
 use js_core::vectors::*;
 
@@ -55,6 +56,10 @@ pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
                 return Ok(Variant::from(godot::prelude::Vector2::new(
                     internal.x, internal.y,
                 )));
+            }
+            if let Some(c_class) = js::class::Class::<JsColor>::from_object(obj) {
+                let c = c_class.borrow();
+                return Ok(Variant::from(godot::builtin::Color::from_rgba(c.r, c.g, c.b, c.a)));
             }
             let mut gd_dict = Dictionary::<Variant, Variant>::new();
             let keys: Vec<String> = obj.keys().collect::<js::Result<Vec<_>>>()?;
@@ -117,6 +122,18 @@ where
             let v2 = variant.try_to::<Vector2>().unwrap_or(Vector2::ZERO);
             let js_vec = JsVector2 { x: v2.x, y: v2.y };
             let class_instance = js::Class::instance(ctx.clone(), js_vec)?;
+            Ok(class_instance.into_value())
+        }
+
+        VariantType::COLOR => {
+            let c = variant.try_to::<Color>().unwrap_or(Color::from_rgba(0.0, 0.0, 0.0, 1.0));
+            let js_color = JsColor {
+                r: c.r,
+                g: c.g,
+                b: c.b,
+                a: c.a,
+            };
+            let class_instance = js::Class::instance(ctx.clone(), js_color)?;
             Ok(class_instance.into_value())
         }
 
