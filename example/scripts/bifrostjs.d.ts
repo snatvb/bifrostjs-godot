@@ -1,10 +1,18 @@
-// ===== Module declaration =====
-// `import engine from "bifrostjs"` — единственный импорт для скриптов
-// Все типы глобальные, без импорта
+// AI Generated file
 
 declare module "bifrostjs" {
   const engine: Engine
   export default engine
+}
+
+// ===== Globals (provided by Rust runtime) =====
+
+declare var console: {
+  log(...args: any[]): void
+  warn(...args: any[]): void
+  error(...args: any[]): void
+  info(...args: any[]): void
+  trace(...args: any[]): void
 }
 
 // ===== Classes =====
@@ -17,14 +25,15 @@ declare class Vector2 {
   add(x: number, y: number): void
 }
 
-// ===== Globals (provided by Rust runtime) =====
-
-declare var console: {
-  log(...args: any[]): void
-  warn(...args: any[]): void
-  error(...args: any[]): void
-  info(...args: any[]): void
-  trace(...args: any[]): void
+declare class Color {
+  constructor(r: number, g: number, b: number, a: number)
+  r: number
+  g: number
+  b: number
+  a: number
+  set(r: number, g: number, b: number, a: number): void
+  toRgba32(): number
+  toString(): string
 }
 
 // ===== Script contract =====
@@ -38,7 +47,7 @@ interface Script {
 
 interface Engine {
   isKeyPressed(key: number): boolean
-  createNode(class_name: string): GodotNode | undefined
+  createNode<T extends string>(class_name: T): GodotNodeByClass<T> | undefined
   instantiate(path: string): GodotNode | undefined
   readonly input: Input
   readonly Keys: Keys
@@ -51,22 +60,94 @@ interface Input {
 }
 
 interface Keys {
-  readonly W: 87
+  // letters
   readonly A: 65
-  readonly S: 83
+  readonly B: 66
+  readonly C: 67
   readonly D: 68
+  readonly E: 69
+  readonly F: 70
+  readonly G: 71
+  readonly H: 72
+  readonly I: 73
+  readonly J: 74
+  readonly K: 75
+  readonly L: 76
+  readonly M: 77
+  readonly N: 78
+  readonly O: 79
+  readonly P: 80
+  readonly Q: 81
+  readonly R: 82
+  readonly S: 83
+  readonly T: 84
+  readonly U: 85
+  readonly V: 86
+  readonly W: 87
+  readonly X: 88
+  readonly Y: 89
+  readonly Z: 90
+
+  // digits
+  readonly KEY_0: 48
+  readonly KEY_1: 49
+  readonly KEY_2: 50
+  readonly KEY_3: 51
+  readonly KEY_4: 52
+  readonly KEY_5: 53
+  readonly KEY_6: 54
+  readonly KEY_7: 55
+  readonly KEY_8: 56
+  readonly KEY_9: 57
+
+  // arrows
+  readonly UP: 4194320
+  readonly DOWN: 4194321
+  readonly LEFT: 4194319
+  readonly RIGHT: 4194322
+
+  // modifiers
+  readonly SHIFT: 4194305
+  readonly CTRL: 4194307
+  readonly ALT: 4194309
+  readonly META: 4194306
+
+  // navigation
+  readonly SPACE: 32
+  readonly ENTER: 4194308
+  readonly ESCAPE: 4194303
+  readonly TAB: 4194302
+  readonly BACKSPACE: 4194301
+  readonly DELETE: 4194311
+  readonly HOME: 4194318
+  readonly END: 4194323
+  readonly PAGEUP: 4194316
+  readonly PAGEDOWN: 4194317
+  readonly INSERT: 4194315
+
+  // function keys
+  readonly F1: 4194324
+  readonly F2: 4194325
+  readonly F3: 4194326
+  readonly F4: 4194327
+  readonly F5: 4194328
+  readonly F6: 4194329
+  readonly F7: 4194330
+  readonly F8: 4194331
+  readonly F9: 4194332
+  readonly F10: 4194333
+  readonly F11: 4194334
+  readonly F12: 4194335
 }
 
-// ===== Типы-заглушки (без поддержки конвертации) =====
+// ===== Типы-заглушки =====
 
-type Color = unknown        // @TODO: Color marshalling
 type Rect2 = unknown        // @TODO: Rect2 marshalling
 type Vector3 = unknown      // @TODO: Vector3 marshalling
 type Transform2D = unknown  // @TODO: Transform2D marshalling
 type Transform3D = unknown  // @TODO: Transform3D marshalling
 
 // ===== GodotObjectBase =====
-// Базовый интерфейс для любого проксированного Godot-объекта
 
 interface GodotObjectBase {
   readonly gd_instance_id: number
@@ -81,13 +162,9 @@ interface GodotObjectBase {
   disconnect(callback_id: number): void
   register_signal(signal_name: string): void
   emit_signal(signal_name: string, ...args: any[]): void
-
-  // Любое Godot-свойство/метод (runtime proxy)
-  [key: string]: any
 }
 
 // ===== GodotNodeBase =====
-// Методы Node + is_class type guard
 
 interface GodotNodeBase extends GodotObjectBase {
   // lifecycle
@@ -98,25 +175,82 @@ interface GodotNodeBase extends GodotObjectBase {
   is_inside_tree(): boolean
 
   // hierarchy
-  get_parent(): GodotNode
+  get_parent(): GodotNode | null
   get_children(): GodotNode[]
-  get_node(path: string): GodotNode
+  get_child(idx: number, include_internal?: boolean): GodotNode
+  get_node<T extends GodotNode = GodotNode>(path: string): T
+  get_node_or_null<T extends GodotNode = GodotNode>(path: string): T | null
   has_node(path: string): boolean
   get_child_count(): number
   get_index(): number
   move_child(child: GodotNode, idx: number): void
   raise(): void
+  add_sibling(sibling: GodotNode, force_readable?: boolean): void
+  reparent(new_parent: GodotNode, keep_global_transform?: boolean): void
+  replace_by(node: GodotNode, keep_groups?: boolean): void
+
+  // owner / scene
+  owner: GodotNode | null
+  scene_file_path: string
+  unique_name_in_owner: boolean
 
   // processing
+  process_mode: number
+  process_priority: number
+  process_physics_priority: number
+  physics_interpolation_mode: number
+
   set_process(enable: boolean): void
   set_physics_process(enable: boolean): void
+  set_process_input(enable: boolean): void
+  set_process_unhandled_input(enable: boolean): void
+  set_process_shortcut_input(enable: boolean): void
+  is_processing(): boolean
+  is_physics_processing(): boolean
+  can_process(): boolean
+  is_node_ready(): boolean
+  request_ready(): void
 
   // tree
-  get_tree(): GodotNode
+  get_tree(): GodotNode | null
+  get_viewport(): GodotNode | null
+  get_window(): GodotNode | null
+  is_ancestor_of(node: GodotNode): boolean
+  is_inside_tree(): boolean
+
+  // search
+  find_child(pattern: string, recursive?: boolean, owned?: boolean): GodotNode | null
+  find_children(pattern: string, type?: string, recursive?: boolean, owned?: boolean): GodotNode[]
+  find_parent(pattern: string): GodotNode | null
+
+  // path
+  get_path(): string
+  get_path_to(node: GodotNode, use_unique_path?: boolean): string
+
+  // groups
+  add_to_group(group: string, persistent?: boolean): void
+  remove_from_group(group: string): void
+  is_in_group(group: string): boolean
+  get_groups(): string[]
+
+  // tween
+  create_tween(): any
 
   // signals
   has_signal(signal: string): boolean
   has_user_signal(signal: string): boolean
+
+  // notification / propagation
+  propagate_call(method: string, args?: any[], parent_first?: boolean): void
+  propagate_notification(what: number): void
+  set_editable_instance(node: GodotNode, editable: boolean): void
+  is_editable_instance(node: GodotNode): boolean
+
+  // debug
+  print_tree(): void
+  print_tree_pretty(): void
+  get_tree_string(): string
+  get_tree_string_pretty(): string
 
   // mouse
   get_global_mouse_position(): Vector2
@@ -125,15 +259,57 @@ interface GodotNodeBase extends GodotObjectBase {
   is_class<T extends string>(name: T): this is GodotNodeByClass<T>
 }
 
+// ===== CanvasItemBase =====
+
+interface CanvasItemBase extends GodotNodeBase {
+  visible: boolean
+  modulate: Color
+  self_modulate: Color
+  z_index: number
+  z_as_relative: boolean
+  material: GodotMaterial | null
+  use_parent_material: boolean
+  show_behind_parent: boolean
+  top_level: boolean
+  clip_children: number
+  light_mask: number
+  visibility_layer: number
+  texture_filter: number
+  texture_repeat: number
+
+  show(): void
+  hide(): void
+  is_visible_in_tree(): boolean
+  queue_redraw(): void
+
+  set_notify_transform(enable: boolean): void
+  set_notify_local_transform(enable: boolean): void
+  is_transform_notification_enabled(): boolean
+  is_local_transform_notification_enabled(): boolean
+
+  get_canvas_transform(): Transform2D
+  get_global_transform(): Transform2D
+  get_viewport_rect(): Rect2
+  get_viewport(): GodotNode | null
+
+  set_instance_shader_parameter(name: string, value: any): void
+}
+
 // ===== Node2DBase =====
 
-interface Node2DBase extends GodotNodeBase {
+interface Node2DBase extends CanvasItemBase {
   position: Vector2
   global_position: Vector2
   rotation: number
   rotation_degrees: number
   scale: Vector2
   skew: number
+  global_rotation: number
+  global_rotation_degrees: number
+  global_scale: Vector2
+  global_skew: number
+  transform: Transform2D
+  global_transform: Transform2D
 
   set_position(pos: Vector2): void
   set_global_position(pos: Vector2): void
@@ -145,11 +321,23 @@ interface Node2DBase extends GodotNodeBase {
   get_rotation(): number
   get_rotation_degrees(): number
   get_scale(): Vector2
+
+  look_at(point: Vector2): void
+  to_global(local_point: Vector2): Vector2
+  to_local(global_point: Vector2): Vector2
+  translate(offset: Vector2): void
+  global_translate(offset: Vector2): void
+  rotate(radians: number): void
+  get_angle_to(point: Vector2): number
+  apply_scale(ratio: Vector2): void
+  move_local_x(delta: number, scaled?: boolean): void
+  move_local_y(delta: number, scaled?: boolean): void
+  get_relative_transform_to_parent(parent: GodotNode): Transform2D
 }
 
 // ===== ControlBase =====
 
-interface ControlBase extends GodotNodeBase {
+interface ControlBase extends CanvasItemBase {
   position: Vector2
   size: Vector2
   custom_minimum_size: Vector2
@@ -157,19 +345,89 @@ interface ControlBase extends GodotNodeBase {
   rotation_degrees: number
   scale: Vector2
   pivot_offset: Vector2
+  global_position: Vector2
 
-  // @TODO: anchor_left, anchor_right, anchor_top, anchor_bottom,
-  //        offset_left, offset_right, offset_top, offset_bottom,
-  //        grow_horizontal, grow_vertical, size_flags_*
+  anchor_left: number
+  anchor_right: number
+  anchor_top: number
+  anchor_bottom: number
+  offset_left: number
+  offset_right: number
+  offset_top: number
+  offset_bottom: number
+  grow_horizontal: number
+  grow_vertical: number
+  size_flags_horizontal: number
+  size_flags_vertical: number
+  size_flags_stretch_ratio: number
+
+  focus_mode: number
+  mouse_filter: number
+  mouse_force_pass: boolean
+  mouse_default_cursor_shape: number
+  tooltip_text: string
+  clip_contents: boolean
+  auto_translate: boolean
+  layout_direction: number
+  theme: GodotResource | null
+  theme_type_variation: string
+
+  set_anchor(side: number, value: number): void
+  get_anchor(side: number): number
+  set_begin(pos: Vector2): void
+  set_end(pos: Vector2): void
+  get_begin(): Vector2
+  get_end(): Vector2
 }
 
 // ===== Node3DBase =====
 
 interface Node3DBase extends GodotNodeBase {
-  // @TODO: Vector3 — position, rotation, scale, transform, basis, quaternion
   position: Vector3
   rotation: Vector3
   scale: Vector3
+  global_position: Vector3
+  global_rotation: Vector3
+  global_scale: Vector3
+  transform: Transform3D
+  global_transform: Transform3D
+  basis: any
+  global_basis: any
+  quaternion: any
+  top_level: boolean
+  visible: boolean
+  rotation_edit_mode: number
+  rotation_order: number
+
+  show(): void
+  hide(): void
+  is_visible_in_tree(): boolean
+
+  look_at(target: Vector3, up?: Vector3): void
+  look_at_from_position(pos: Vector3, target: Vector3, up?: Vector3): void
+  translate(offset: Vector3): void
+  global_translate(offset: Vector3): void
+  rotate(axis: Vector3, angle: number): void
+  rotate_x(angle: number): void
+  rotate_y(angle: number): void
+  rotate_z(angle: number): void
+  global_rotate(axis: Vector3, angle: number): void
+  to_global(local_point: Vector3): Vector3
+  to_local(global_point: Vector3): Vector3
+  orthonormalize(): void
+  set_identity(): void
+  set_disable_scale(disable: boolean): void
+  is_scale_disabled(): boolean
+  rotate_object_local(axis: Vector3, angle: number): void
+  scale_object_local(scale: Vector3): void
+  translate_object_local(offset: Vector3): void
+  force_update_transform(): void
+  set_notify_transform(enable: boolean): void
+  set_notify_local_transform(enable: boolean): void
+  is_transform_notification_enabled(): boolean
+  set_ignore_transform_notification(enabled: boolean): void
+  get_parent_node_3d(): Node3D | null
+  get_world_3d(): any
 }
 
 // ==========================================
@@ -191,7 +449,11 @@ interface Sprite2D extends Node2DBase {
   vframes: number
   frame_coords: Vector2
   region_enabled: boolean
-  region_rect: Rect2 // @TODO
+  region_rect: Rect2
+  region_filter_clip_enabled: boolean
+
+  get_rect(): Rect2
+  is_pixel_opaque(pos: Vector2): boolean
 }
 
 // --- AnimatedSprite2D ---
@@ -218,13 +480,39 @@ interface CharacterBody2D extends Node2DBase {
   class_type: "CharacterBody2D"
 
   velocity: Vector2
+  up_direction: Vector2
+  motion_mode: number
+  max_slides: number
+  floor_max_angle: number
+  floor_snap_length: number
+  floor_stop_on_slope: boolean
+  floor_block_on_wall: boolean
+  floor_constant_speed: boolean
+  slide_on_ceiling: boolean
+  wall_min_slide_angle: number
+  safe_margin: number
+  platform_floor_layers: number
+  platform_wall_layers: number
+  platform_on_leave: number
 
   move_and_slide(): void
   is_on_floor(): boolean
   is_on_ceiling(): boolean
   is_on_wall(): boolean
-  get_last_slide_collision(): any // @TODO KinematicCollision2D
+  is_on_floor_only(): boolean
+  is_on_ceiling_only(): boolean
+  is_on_wall_only(): boolean
+  get_floor_normal(): Vector2
+  get_floor_angle(up_direction?: Vector2): number
+  get_wall_normal(): Vector2
+  get_last_motion(): Vector2
+  get_real_velocity(): Vector2
+  get_platform_velocity(): Vector2
+  get_position_delta(): Vector2
+  get_last_slide_collision(): any
+  get_slide_collision(idx: number): any
   get_slide_collision_count(): number
+  apply_floor_snap(): void
 }
 
 // --- RigidBody2D ---
@@ -244,14 +532,22 @@ interface RigidBody2D extends Node2DBase {
   angular_damp: number
   constant_force: Vector2
   constant_torque: number
-  continuous_cd: number // @TODO enum
+  continuous_cd: number
+  freeze: boolean
+  freeze_mode: number
+  gyroscopic_torque: number
+  center_of_mass_mode: number
+  physics_material_override: GodotResource | null
 
   apply_central_force(force: Vector2): void
   apply_force(force: Vector2, position: Vector2): void
   apply_impulse(impulse: Vector2, position?: Vector2): void
+  apply_central_impulse(impulse: Vector2): void
   apply_torque(torque: number): void
+  apply_torque_impulse(torque: number): void
   set_linear_velocity(vel: Vector2): void
   set_angular_velocity(vel: number): void
+  get_colliding_bodies(): GodotNode[]
 }
 
 // --- StaticBody2D ---
@@ -272,18 +568,28 @@ interface Area2D extends Node2DBase {
   gravity_direction: Vector2
   gravity_is_point: boolean
   gravity_point_unit_distance: number
+  gravity_space_override: number
+  gravity_point_center: Vector2
   linear_damp: number
   angular_damp: number
+  linear_damp_space_override: number
+  angular_damp_space_override: number
   priority: number
   monitorable: boolean
   monitoring: boolean
-  // @TODO: collision_mask, collision_layer, area_layer, audio_bus_override
+  audio_bus_override: boolean
+  audio_bus_name: string
+  collision_mask: number
+  collision_layer: number
 
   has_overlapping_bodies(): boolean
   has_overlapping_areas(): boolean
   get_overlapping_bodies(): GodotNode[]
   get_overlapping_areas(): GodotNode[]
-  // @TODO: body_entered/body_exited signals via connect
+  get_overlapping_bodies_count(): number
+  get_overlapping_areas_count(): number
+  overlaps_area(area: GodotNode): boolean
+  overlaps_body(body: GodotNode): boolean
 }
 
 // --- CollisionShape2D ---
@@ -294,7 +600,6 @@ interface CollisionShape2D extends Node2DBase {
   disabled: boolean
   one_way_collision: boolean
   one_way_collision_margin: number
-  // @TODO: shape — Shape2D resource
 }
 
 // --- CollisionPolygon2D ---
@@ -306,7 +611,7 @@ interface CollisionPolygon2D extends Node2DBase {
   disabled: boolean
   one_way_collision: boolean
   one_way_collision_margin: number
-  polygon: Vector2[] // @TODO PackedVector2Array
+  polygon: Vector2[]
 }
 
 // --- Camera2D ---
@@ -314,24 +619,35 @@ interface CollisionPolygon2D extends Node2DBase {
 interface Camera2D extends Node2DBase {
   class_type: "Camera2D"
 
-  anchor_mode: number // @TODO enum
+  anchor_mode: number
   zoom: Vector2
   offset: Vector2
   enabled: boolean
   current: boolean
   limit_smoothed: Vector2
-  // @TODO: limit_left, limit_right, limit_top, limit_bottom
+  limit_left: number
+  limit_right: number
+  limit_top: number
+  limit_bottom: number
+  drag_margin_left: number
+  drag_margin_right: number
+  drag_margin_top: number
+  drag_margin_bottom: number
   position_smoothing_enabled: boolean
   position_smoothing_speed: number
   drag_horizontal_enabled: boolean
   drag_vertical_enabled: boolean
   drag_margin_h_enabled: boolean
   drag_margin_v_enabled: boolean
-  // @TODO: drag margins left/right/top/bottom
+  ignore_rotation: boolean
+  screen_drawing_enabled: boolean
 
   make_current(): void
   clear_current(): void
   is_current(): boolean
+  get_screen_center_position(): Vector2
+  align(): void
+  force_update_scroll(): void
 }
 
 // --- Timer ---
@@ -347,7 +663,6 @@ interface Timer extends GodotNodeBase {
   start(time_sec?: number): void
   stop(): void
   is_stopped(): boolean
-  // @TODO: signal timeout
 }
 
 // --- AnimationPlayer ---
@@ -361,7 +676,11 @@ interface AnimationPlayer extends GodotNodeBase {
   autoplay: string
   playback_default_blend_time: number
   current_animation_length: number
-  // @TODO: playback_process_mode (enum)
+  root_node: string
+  playing: boolean
+  playback_process_mode: number
+  method_call_mode: number
+  reset_on_save: boolean
 
   play(name?: string): void
   stop(keep_state?: boolean): void
@@ -369,8 +688,15 @@ interface AnimationPlayer extends GodotNodeBase {
   seek(seconds: number, update?: boolean): void
   is_playing(): boolean
   get_current_animation(): string
-  get_animation(name: string): any // @TODO Animation resource
+  get_animation(name: string): any
+  get_animation_list(): string[]
   clear_queue(): void
+  queue(name: string): void
+  get_queue(): string[]
+  advance(delta: number): void
+  set_blend_time(anim1: string, anim2: string, sec: number): void
+  get_blend_time(anim1: string, anim2: string): number
+  get_playing_speed(): number
 }
 
 // --- AudioStreamPlayer2D ---
@@ -378,6 +704,7 @@ interface AnimationPlayer extends GodotNodeBase {
 interface AudioStreamPlayer2D extends Node2DBase {
   class_type: "AudioStreamPlayer2D"
 
+  stream: GodotResource | null
   volume_db: number
   pitch_scale: number
   playing: boolean
@@ -385,13 +712,14 @@ interface AudioStreamPlayer2D extends Node2DBase {
   max_distance: number
   attenuation: number
   panning_strength: number
-  // @TODO: stream — AudioStream resource
-  // @TODO: bus — StringName
+  bus: string
+  max_polyphony: number
 
   play(from_position?: number): void
   stop(): void
   is_playing(): boolean
   get_playback_position(): number
+  seek(seconds: number): void
 }
 
 // --- RayCast2D ---
@@ -404,7 +732,7 @@ interface RayCast2D extends Node2DBase {
   target_position: Vector2
   collide_with_bodies: boolean
   collide_with_areas: boolean
-  collision_mask: number // @TODO bitmask
+  collision_mask: number
 
   is_colliding(): boolean
   get_collider(): GodotNode | null
@@ -412,7 +740,6 @@ interface RayCast2D extends Node2DBase {
   get_collision_point(): Vector2
   get_collision_face_index(): number
   force_raycast_update(): void
-  // @TODO: add_exception/add_exception_rid
 }
 
 // --- GPUParticles2D ---
@@ -432,7 +759,14 @@ interface GPUParticles2D extends Node2DBase {
   fract_delta: boolean
   process_material: GodotMaterial | null
   texture: GodotTexture | null
-  // @TODO: draw_order, sub_emitter, collision_*
+  draw_order: number
+  interpolate: boolean
+  collision_enabled: boolean
+  collision_mode: number
+  collision_base_size: number
+  collision_mask: number
+  sub_emitter: GodotNode | null
+  attractor_interaction_enabled: boolean
 
   restart(): void
   set_emitting(emitting: boolean): void
@@ -454,17 +788,20 @@ interface CPUParticles2D extends Node2DBase {
   fixed_fps: number
   fract_delta: boolean
   texture: GodotTexture | null
-  // @TODO: color, color_*, scale_*, angle, gravity
+  draw_order: number
+  collision_enabled: boolean
+  collision_mode: number
+  collision_base_size: number
+  collision_mask: number
 
   restart(): void
   set_emitting(emitting: boolean): void
 }
 
-// --- Node2D (generic) ---
+// --- Node2D ---
 
 interface Node2D extends Node2DBase {
   class_type: "Node2D"
-  // всё от Node2DBase + прокси
 }
 
 // --- Marker2D ---
@@ -478,7 +815,7 @@ interface Marker2D extends Node2DBase {
 
 interface Path2D extends Node2DBase {
   class_type: "Path2D"
-  curve: any // @TODO Curve2D resource
+  curve: any
 }
 
 // --- PathFollow2D ---
@@ -515,7 +852,6 @@ interface ParallaxLayer extends Node2DBase {
 
   motion_offset: Vector2
   motion_scale: Vector2
-  // @TODO: mirroring
 }
 
 // --- TileMap ---
@@ -523,7 +859,7 @@ interface ParallaxLayer extends Node2DBase {
 interface TileMap extends Node2DBase {
   class_type: "TileMap"
 
-  // @TODO: tileset — TileSet resource
+  tile_set: GodotResource | null
   rendering_quadrant_size: number
   collision_animation_enabled: boolean
   cell_quadrant_size: number
@@ -531,9 +867,12 @@ interface TileMap extends Node2DBase {
   set_cell(layer: number, coords: Vector2, source_id: number, atlas_coords?: Vector2, alternative_tile?: number): void
   get_cell_source_id(layer: number, coords: Vector2): number
   get_cell_atlas_coords(layer: number, coords: Vector2): Vector2
+  set_cells_terrain_connect(layer: number, cells: Vector2[], terrain_set: number, terrain: number, ignore_existing?: boolean): void
+  get_used_cells(layer: number): Vector2[]
+  get_used_cells_by_id(layer: number, source_id?: number, atlas_coords?: Vector2, alternative_tile?: number): Vector2[]
+  get_used_rect(): Rect2
   clear_layer(layer: number): void
   clear(): void
-  get_used_cells(layer: number): Vector2[]
 }
 
 // --- TileMapLayer ---
@@ -541,11 +880,16 @@ interface TileMap extends Node2DBase {
 interface TileMapLayer extends Node2DBase {
   class_type: "TileMapLayer"
 
-  // @TODO: tileset
+  tile_set: GodotResource | null
   enabled: boolean
 
   set_cell(coords: Vector2, source_id: number, atlas_coords?: Vector2, alternative_tile?: number): void
   get_cell_source_id(coords: Vector2): number
+  get_cell_atlas_coords(coords: Vector2): Vector2
+  get_cell_alternative_tile(coords: Vector2): number
+  get_cell_tile_data(coords: Vector2): any
+  get_used_cells(): Vector2[]
+  get_used_rect(): Rect2
   clear(): void
 }
 
@@ -554,7 +898,7 @@ interface TileMapLayer extends Node2DBase {
 interface VisibleOnScreenNotifier2D extends Node2DBase {
   class_type: "VisibleOnScreenNotifier2D"
 
-  rect: Rect2 // @TODO
+  rect: Rect2
 
   is_on_screen(): boolean
 }
@@ -564,15 +908,14 @@ interface VisibleOnScreenNotifier2D extends Node2DBase {
 interface VisibleOnScreenEnabler2D extends Node2DBase {
   class_type: "VisibleOnScreenEnabler2D"
 
-  enable_mode: number // @TODO enum
-  rect: Rect2 // @TODO
+  enable_mode: number
+  rect: Rect2
 }
 
 // --- MeshInstance2D ---
 
 interface MeshInstance2D extends Node2DBase {
   class_type: "MeshInstance2D"
-  // @TODO: mesh — Mesh resource
   texture: GodotTexture | null
 }
 
@@ -582,7 +925,7 @@ interface NavigationAgent2D extends Node2DBase {
   class_type: "NavigationAgent2D"
 
   target_position: Vector2
-  navigation_layers: number // @TODO bitmask
+  navigation_layers: number
   path_desired_distance: number
   target_desired_distance: number
   path_max_distance: number
@@ -591,8 +934,7 @@ interface NavigationAgent2D extends Node2DBase {
 
   is_navigation_finished(): boolean
   get_next_path_position(): Vector2
-  get_current_navigation_result(): any // @TODO
-  // @TODO: velocity computation mode
+  get_current_navigation_result(): any
 }
 
 // --- NavigationObstacle2D ---
@@ -602,7 +944,6 @@ interface NavigationObstacle2D extends Node2DBase {
 
   radius: number
   velocity: Vector2
-  // @TODO: avoidance_layers, height
 }
 
 // --- NavigationRegion2D ---
@@ -611,8 +952,6 @@ interface NavigationRegion2D extends Node2DBase {
   class_type: "NavigationRegion2D"
 
   enabled: boolean
-  // @TODO: navigation_polygon — NavigationPolygon resource
-  // @TODO: layers
 }
 
 // --- CanvasLayer ---
@@ -626,7 +965,6 @@ interface CanvasLayer extends GodotNodeBase {
   rotation: number
   scale: Vector2
   offset: Vector2
-  // @TODO: visible, modulate, custom_viewport
 }
 
 // ==========================================
@@ -636,32 +974,38 @@ interface CanvasLayer extends GodotNodeBase {
 // --- Control ---
 
 interface Control extends ControlBase {
-  visible: boolean
-  mouse_filter: number // @TODO enum
-  mouse_force_pass: boolean
-  // @TODO: theme, theme_type_variation
-
-  show(): void
-  hide(): void
   get_parent_area_size(): Vector2
   get_minimum_size(): Vector2
+  get_combined_minimum_size(): Vector2
   set_anchor_and_offset(...args: any[]): void
+
+  grab_focus(): void
+  release_focus(): void
+  has_focus(): boolean
+  accept_event(): void
+  get_focus_owner(): GodotNode | null
+  find_next_valid_focus(): GodotNode | null
+  find_prev_valid_focus(): GodotNode | null
+
+  get_rect(): Rect2
+  get_global_rect(): Rect2
+  get_screen_position(): Vector2
+  has_point(point: Vector2): boolean
+  warp_mouse(position: Vector2): void
 }
 
 // --- Label ---
 
-interface Label extends Control {
+interface Label extends Omit<Control, 'class_type'> {
   class_type: "Label"
 
   text: string
-  horizontal_alignment: number // @TODO enum
-  vertical_alignment: number // @TODO enum
-  autowrap_mode: number // @TODO enum
+  horizontal_alignment: number
+  vertical_alignment: number
+  autowrap_mode: number
   clip_text: boolean
   max_lines_visible: number
   language: string
-  // @TODO: label_settings — LabelSettings
-  // @TODO: ellipsize_behavior
 
   get_line_count(): number
   get_visible_line_count(): number
@@ -676,13 +1020,12 @@ interface Button extends Omit<Control, 'class_type'> {
   disabled: boolean
   flat: boolean
   icon: GodotTexture | null
-  icon_alignment: number // @TODO enum
-  // @TODO: button_group, button_mask, shortcut
+  icon_alignment: number
 }
 
 // --- TextureButton ---
 
-interface TextureButton extends Control {
+interface TextureButton extends Omit<Control, 'class_type'> {
   class_type: "TextureButton"
 
   texture_normal: GodotTexture | null
@@ -691,42 +1034,40 @@ interface TextureButton extends Control {
   texture_disabled: GodotTexture | null
   texture_focused: GodotTexture | null
   expand: boolean
-  stretch_mode: number // @TODO enum
+  stretch_mode: number
   flip_h: boolean
   flip_v: boolean
   ignore_texture_size: boolean
-  // @TODO: click_mask — BitMap
 }
 
 // --- TextureRect ---
 
-interface TextureRect extends Control {
+interface TextureRect extends Omit<Control, 'class_type'> {
   class_type: "TextureRect"
 
   texture: GodotTexture | null
-  expand_mode: number // @TODO enum
-  stretch_mode: number // @TODO enum
+  expand_mode: number
+  stretch_mode: number
   flip_h: boolean
   flip_v: boolean
 }
 
 // --- ColorRect ---
 
-interface ColorRect extends Control {
+interface ColorRect extends Omit<Control, 'class_type'> {
   class_type: "ColorRect"
 
-  color: Color // @TODO
+  color: Color
 }
 
 // --- RichTextLabel ---
 
-interface RichTextLabel extends Control {
+interface RichTextLabel extends Omit<Control, 'class_type'> {
   class_type: "RichTextLabel"
 
   text: string
   bbcode_enabled: boolean
   bbcode_text: string
-  // @TODO: label_settings, mouse_filter, autowrap_mode, scroll_active
 
   append_text(text: string): void
   clear(): void
@@ -740,18 +1081,17 @@ interface RichTextLabel extends Control {
 
 // --- LineEdit ---
 
-interface LineEdit extends Control {
+interface LineEdit extends Omit<Control, 'class_type'> {
   class_type: "LineEdit"
 
   text: string
   placeholder_text: string
-  placeholder_alignment: number // @TODO enum
+  placeholder_alignment: number
   editable: boolean
   max_length: number
   caret_column: number
   readonly: boolean
   select_all_on_focus: boolean
-  // @TODO: caret_blink, caret_force_displayed, middle_mouse_paste
 
   select(from?: number, to?: number): void
   select_all(): void
@@ -770,21 +1110,19 @@ interface OptionButton extends Omit<Button, 'class_type'> {
   class_type: "OptionButton"
 
   selected: number
-  // @TODO: item_count, fit_to_longest_item, align
 
   get_item_text(index: number): string
   select(index: number): void
   add_item(text: string, icon?: GodotTexture): void
   add_separator(): void
   clear(): void
-  get_popup(): any // @TODO PopupMenu
+  get_popup(): any
 }
 
 // --- CheckButton / CheckBox ---
 
 interface CheckButton extends Omit<Button, 'class_type'> {
   class_type: "CheckButton"
-  // button_mask, pressed — через Button
 }
 
 interface CheckBox extends Omit<Button, 'class_type'> {
@@ -793,7 +1131,7 @@ interface CheckBox extends Omit<Button, 'class_type'> {
 
 // --- SpinBox ---
 
-interface SpinBox extends Control {
+interface SpinBox extends Omit<Control, 'class_type'> {
   class_type: "SpinBox"
 
   value: number
@@ -803,12 +1141,11 @@ interface SpinBox extends Control {
   prefix: string
   suffix: string
   editable: boolean
-  // @TODO: alignment, custom_arrow_step
 }
 
 // --- HSlider / VSlider ---
 
-interface HSlider extends Control {
+interface HSlider extends Omit<Control, 'class_type'> {
   class_type: "HSlider"
 
   value: number
@@ -816,10 +1153,9 @@ interface HSlider extends Control {
   max_value: number
   step: number
   tick_count: number
-  // @TODO: editable, scrollable, rounded
 }
 
-interface VSlider extends Control {
+interface VSlider extends Omit<Control, 'class_type'> {
   class_type: "VSlider"
 
   value: number
@@ -831,14 +1167,13 @@ interface VSlider extends Control {
 
 // --- ProgressBar ---
 
-interface ProgressBar extends Control {
+interface ProgressBar extends Omit<Control, 'class_type'> {
   class_type: "ProgressBar"
 
   value: number
   min_value: number
   max_value: number
   show_percentage: boolean
-  // @TODO: fill_mode, nine_patch_stretch, orientation
 }
 
 // --- LinkButton ---
@@ -851,12 +1186,9 @@ interface LinkButton extends Omit<Button, 'class_type'> {
 
 // --- PopupMenu ---
 
-interface PopupMenu extends Control {
+interface PopupMenu extends Omit<Control, 'class_type'> {
   class_type: "PopupMenu"
 
-  // @TODO: items, hide_on_checkable_item_selection, hide_on_item_selection
-  show(): void
-  hide(): void
   add_item(text: string, id?: number): void
   add_check_item(text: string, id?: number): void
   add_separator(): void
@@ -871,14 +1203,13 @@ interface PopupMenu extends Control {
 
 // --- ItemList ---
 
-interface ItemList extends Control {
+interface ItemList extends Omit<Control, 'class_type'> {
   class_type: "ItemList"
 
   max_columns: number
   same_column_width: boolean
   allow_reselect: boolean
   auto_height: boolean
-  // @TODO: icon_mode, icon_scale, select_mode, fixed_column_width
 
   add_item(text: string, icon?: GodotTexture): void
   add_icon_item(icon: GodotTexture): void
@@ -895,50 +1226,42 @@ interface ItemList extends Control {
 
 // --- Tree ---
 
-interface Tree extends Control {
+interface Tree extends Omit<Control, 'class_type'> {
   class_type: "Tree"
 
   columns: number
   hide_root: boolean
-  // @TODO: huge API — create_item, get_next, etc.
+
   clear(): void
-  get_root(): any // @TODO TreeItem
-  create_item(parent?: any): any // @TODO TreeItem
-  get_selected(): any // @TODO TreeItem
-  // @TODO: scroll_to_item, ensure_cursor_is_visible
+  get_root(): any
+  create_item(parent?: any): any
+  get_selected(): any
 }
 
 // --- TabContainer ---
 
-interface TabContainer extends Control {
+interface TabContainer extends Omit<Control, 'class_type'> {
   class_type: "TabContainer"
 
   current_tab: number
   tabs_count: number
-  // @TODO: tab_alignment, tab_layout
-  // @TODO: drag_to_rearrange_enabled, tabs_visible
 }
 
 // --- Window ---
 
-interface Window extends Control {
+interface Window extends Omit<Control, 'class_type'> {
   class_type: "Window"
 
   title: string
   size: Vector2
-  visible: boolean
-  // @TODO: mode, keep_border, borderless, unresizable
-  // @TODO: exclusive, transient, popup_window
-  show(): void
-  hide(): void
+
   close_request(): void
 }
 
-// --- Container layout types ---
+// --- Container ---
 
 interface Container extends Omit<Control, 'class_type'> {
   class_type: "Container"
-  // @TODO: separate layout methods per container type
 }
 
 interface Panel extends Omit<Container, 'class_type'> {
@@ -964,7 +1287,6 @@ interface GridContainer extends Omit<Container, 'class_type'> {
 
 interface MarginContainer extends Omit<Container, 'class_type'> {
   class_type: "MarginContainer"
-  // @TODO: theme_override/constants
 }
 
 interface CenterContainer extends Omit<Container, 'class_type'> {
@@ -975,9 +1297,9 @@ interface CenterContainer extends Omit<Container, 'class_type'> {
 interface AspectRatioContainer extends Omit<Container, 'class_type'> {
   class_type: "AspectRatioContainer"
   ratio: number
-  stretch_mode: number // @TODO enum
-  alignment_h: number // @TODO enum
-  alignment_v: number // @TODO enum
+  stretch_mode: number
+  alignment_h: number
+  alignment_v: number
 }
 
 interface ScrollContainer extends Omit<Container, 'class_type'> {
@@ -987,19 +1309,16 @@ interface ScrollContainer extends Omit<Container, 'class_type'> {
   scroll_vertical: number
   scroll_horizontal_enabled: boolean
   scroll_vertical_enabled: boolean
-  // @TODO: deadzone, follow_focus
 }
 
 interface SplitContainer extends Omit<Container, 'class_type'> {
   class_type: "SplitContainer" | "HSplitContainer" | "VSplitContainer"
 
   split_offset: number
-  dragger_visibility: number // @TODO enum
+  dragger_visibility: number
   collapsed: boolean
   vertical: boolean
 }
-
-// --- HSplitContainer / VSplitContainer ---
 
 interface HSplitContainer extends Omit<SplitContainer, 'class_type'> {
   class_type: "HSplitContainer"
@@ -1009,12 +1328,8 @@ interface VSplitContainer extends Omit<SplitContainer, 'class_type'> {
   class_type: "VSplitContainer"
 }
 
-// --- MenuBar ---
-
-interface MenuBar extends Control {
+interface MenuBar extends Omit<Control, 'class_type'> {
   class_type: "MenuBar"
-
-  // @TODO: provide_menu, menu_items
 }
 
 // ==========================================
@@ -1027,16 +1342,63 @@ interface Node3D extends Node3DBase {
 
 interface CharacterBody3D extends Node3DBase {
   class_type: "CharacterBody3D"
+
   velocity: Vector3
-  // @TODO: move_and_slide, is_on_floor etc (Vector3 variant)
+  up_direction: Vector3
+  motion_mode: number
+  max_slides: number
+  floor_max_angle: number
+  floor_stop_on_slope: boolean
+  floor_block_on_wall: boolean
+  slide_on_ceiling: boolean
+  safe_margin: number
+
+  move_and_slide(): void
+  is_on_floor(): boolean
+  is_on_ceiling(): boolean
+  is_on_wall(): boolean
+  is_on_floor_only(): boolean
+  is_on_ceiling_only(): boolean
+  is_on_wall_only(): boolean
+  get_floor_normal(): Vector3
+  get_wall_normal(): Vector3
+  get_last_motion(): Vector3
+  get_real_velocity(): Vector3
+  get_platform_velocity(): Vector3
+  get_last_slide_collision(): any
+  get_slide_collision(idx: number): any
+  get_slide_collision_count(): number
 }
 
 interface RigidBody3D extends Node3DBase {
   class_type: "RigidBody3D"
+
   mass: number
   gravity_scale: number
   linear_velocity: Vector3
   angular_velocity: Vector3
+  inertia: number
+  can_sleep: boolean
+  sleeping: boolean
+  linear_damp: number
+  angular_damp: number
+  constant_force: Vector3
+  constant_torque: Vector3
+  freeze: boolean
+  freeze_mode: number
+  locked_rotates: boolean
+  continuous_cd: number
+  physics_material_override: GodotResource | null
+
+  apply_central_force(force: Vector3): void
+  apply_force(force: Vector3, position: Vector3): void
+  apply_impulse(impulse: Vector3, position?: Vector3): void
+  apply_central_impulse(impulse: Vector3): void
+  apply_torque(torque: Vector3): void
+  apply_torque_impulse(torque: Vector3): void
+  set_linear_velocity(vel: Vector3): void
+  set_angular_velocity(vel: Vector3): void
+  get_colliding_bodies(): GodotNode[]
 }
 
 interface StaticBody3D extends Node3DBase {
@@ -1045,11 +1407,33 @@ interface StaticBody3D extends Node3DBase {
 
 interface Area3D extends Node3DBase {
   class_type: "Area3D"
+
   gravity: number
+  gravity_direction: Vector3
+  gravity_is_point: boolean
+  gravity_point_unit_distance: number
+  gravity_point_center: Vector3
+  gravity_space_override: number
   linear_damp: number
   angular_damp: number
+  linear_damp_space_override: number
+  angular_damp_space_override: number
+  priority: number
   monitoring: boolean
   monitorable: boolean
+  collision_mask: number
+  collision_layer: number
+  audio_bus_override: boolean
+  audio_bus_name: string
+
+  has_overlapping_bodies(): boolean
+  has_overlapping_areas(): boolean
+  get_overlapping_bodies(): GodotNode[]
+  get_overlapping_areas(): GodotNode[]
+  get_overlapping_bodies_count(): number
+  get_overlapping_areas_count(): number
+  overlaps_area(area: GodotNode): boolean
+  overlaps_body(body: GodotNode): boolean
 }
 
 interface CollisionShape3D extends Node3DBase {
@@ -1064,13 +1448,30 @@ interface CollisionPolygon3D extends Node3DBase {
 
 interface Camera3D extends Node3DBase {
   class_type: "Camera3D"
+
   current: boolean
-  // @TODO: fov, near, far, h_offset, v_offset
+  far: number
+  near: number
+  fov: number
+  size: number
+  projection: number
+  cull_mask: number
+  h_offset: number
+  v_offset: number
+
+  make_current(): void
+  clear_current(): void
+  is_current(): boolean
+  get_camera_rid(): any
+  get_camera_transform(): Transform3D
+  project_ray_normal(screen_point: Vector2): Vector3
+  project_position(screen_point: Vector2, depth: number): Vector3
+  unproject_position(global_point: Vector3): Vector2
 }
 
 interface Path3D extends Node3DBase {
   class_type: "Path3D"
-  curve: any // @TODO Curve3D
+  curve: any
 }
 
 interface PathFollow3D extends Node3DBase {
@@ -1082,15 +1483,36 @@ interface PathFollow3D extends Node3DBase {
 
 interface MeshInstance3D extends Node3DBase {
   class_type: "MeshInstance3D"
-  // @TODO: mesh, material_override
+
+  mesh: GodotResource | null
+  material_override: GodotMaterial | null
+  skeleton: GodotNode | null
+
+  get_surface_override_material(surface: number): GodotMaterial | null
+  set_surface_override_material(surface: number, material: GodotMaterial | null): void
 }
 
 interface AudioStreamPlayer3D extends Node3DBase {
   class_type: "AudioStreamPlayer3D"
+
+  stream: GodotResource | null
   volume_db: number
+  pitch_scale: number
   playing: boolean
-  play(): void
+  autoplay: boolean
+  max_distance: number
+  attenuation: number
+  unit_size: number
+  emission_angle: number
+  emission_angle_enabled: boolean
+  bus: string
+  max_polyphony: number
+
+  play(from_position?: number): void
   stop(): void
+  is_playing(): boolean
+  get_playback_position(): number
+  seek(seconds: number): void
 }
 
 interface RayCast3D extends Node3DBase {
@@ -1160,7 +1582,6 @@ interface SpringArm3D extends Node3DBase {
 // ==========================================
 
 type GodotNode =
-  // Node2D hierarchy
   | Node2D
   | Sprite2D
   | AnimatedSprite2D
@@ -1187,7 +1608,6 @@ type GodotNode =
   | NavigationObstacle2D
   | NavigationRegion2D
   | MeshInstance2D
-  // Control hierarchy
   | Control
   | Label
   | Button
@@ -1222,12 +1642,10 @@ type GodotNode =
   | HSplitContainer
   | VSplitContainer
   | MenuBar
-  // Node (non-CanvasItem)
   | Timer
   | AnimationPlayer
   | CanvasLayer
   | AudioStreamPlayer2D
-  // Node3D hierarchy
   | Node3D
   | CharacterBody3D
   | RigidBody3D
@@ -1343,7 +1761,7 @@ type GodotNodeByClass<T extends string> =
   T extends "BoneAttachment3D" ? BoneAttachment3D :
   T extends "Marker3D" ? Marker3D :
   T extends "SpringArm3D" ? SpringArm3D :
-  GodotNodeBase // fallback
+  GodotNodeBase
 
 // ==========================================
 //        RESOURCE / TEXTURE / MATERIAL
@@ -1360,12 +1778,10 @@ interface GodotResource extends GodotObjectBase {
 interface GodotTexture extends GodotObjectBase {
   readonly class_type: TextureClassType
   readonly size: Vector2
-  // @TODO: get_width, get_height, get_image, create_from_image
 }
 
 interface GodotMaterial extends GodotObjectBase {
   readonly class_type: MaterialClassType
-  // @TODO: shader_param/set_shader_param, next_pass etc
 }
 
 // ==========================================
