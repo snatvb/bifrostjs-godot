@@ -123,7 +123,7 @@ impl JsRuntimeManager {
 
         let ctx = self.ctx();
         ctx.with(|ctx| {
-            self.context.borrow_mut().process_queue(&ctx);
+            self.context.process_queue(&ctx);
         });
     }
 }

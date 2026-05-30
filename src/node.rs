@@ -1,4 +1,5 @@
 use crate::manager::JsRuntimeManager;
+use crate::manager_context::JsSignalMeta;
 use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
 use gdjs::converters::{godot_variant_to_js, js_to_gd_args, js_to_godot_variant};
@@ -6,6 +7,7 @@ use gdjs::proxy_vec::create_vector2_proxy;
 use gdjs::util::{check_alive_handle, gd_alive_handle};
 use js_core::utils::extract_trace;
 
+use rquickjs::Persistent;
 use rquickjs::prelude::Rest;
 use rquickjs::{IntoJs, Proxy, class::Trace, proxy::ProxyHandler};
 
@@ -223,45 +225,53 @@ fn get_special_method<'js>(
     Ok(Some(match prop {
         "is_class" => make_is_class(&deps.ctx, &deps.node)?.into_value(),
         "connect" => make_connect(deps)?.into_value(),
+        "disconnect" => make_disconnect(deps)?.into_value(),
         _ => return Ok(None),
     }))
 }
 
-// fn make_disconnect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
-//     let context_weak = deps.manager_ctx.downgrade();
-//     let node = deps.node.clone();
-//     let connect_fn = Function::new(
-//         deps.ctx.clone(),
-//         move |ctx: Ctx<'js>,
-//               signal_name: String,
-//               callback: Function<'js>|
-//               -> rquickjs::Result<()> {
-//             check_alive_handle(&ctx, &node)?;
-//             if let Some(context) = context_weak.upgrade() {
-//                 let id = context.borrow_mut().save_callback(&ctx, callback);
-//                 let bridge = JsSignalBridge::create(id, context_weak.clone());
-//                 let callable = Callable::from_object_method(&bridge, "on_signal_fired");
-//                 let mut node = node.clone();
-//                 node.connect(&StringName::from(&signal_name), &callable);
-//             }
-//             Ok(())
-//         },
-//     )?;
-//     Ok(connect_fn)
-// }
+fn make_disconnect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
+    let context_weak = deps.manager_ctx.downgrade();
+    let node = deps.node.clone();
+    let connect_fn = Function::new(
+        deps.ctx.clone(),
+        move |ctx: Ctx<'js>, callback_id: u64| -> rquickjs::Result<()> {
+            check_alive_handle(&ctx, &node)?;
+            if let Some((meta, context)) = context_weak.upgrade().and_then(|context| {
+                let meta = context.borrow_mut().drop_callback(callback_id)?;
+                Some((meta, context))
+            }) {
+                if meta.node_id == node.instance_id() {
+                    let mut node = node.clone();
+                    node.disconnect(&meta.signal_name, &meta.callable);
+                } else {
+                    context.borrow_mut().save_callback(meta.id, meta);
+                    godot_warn!(
+                        "{}\n{}",
+                        format!(
+                            "Incorrect node disconnect. Node({}) has no callback with id: {}",
+                            node.get_name(),
+                            callback_id
+                        ),
+                        extract_trace(&ctx)
+                    );
+                }
+            }
+            Ok(())
+        },
+    )?;
+    Ok(connect_fn)
+}
 
 fn make_connect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
     let context_weak = deps.manager_ctx.downgrade();
     let node = deps.node.clone();
     let connect_fn = Function::new(
         deps.ctx.clone(),
-        move |ctx: Ctx<'js>,
-              signal_name: String,
-              callback: Function<'js>|
-              -> rquickjs::Result<()> {
+        move |ctx: Ctx<'js>, signal_name: String, callback: Function<'js>| {
             check_alive_handle(&ctx, &node)?;
             if let Some(context) = context_weak.upgrade() {
-                let id = context.borrow_mut().save_callback(&ctx, callback);
+                let id = context.borrow_mut().next_callback_id();
                 let ctx_weak = context_weak.clone();
                 let callable = Callable::from_linked_fn(
                     "js_signal_handler",
@@ -274,11 +284,24 @@ fn make_connect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
                         godot::prelude::Variant::nil()
                     },
                 );
+
+                context.borrow_mut().save_callback(
+                    id,
+                    JsSignalMeta {
+                        id,
+                        callback: Persistent::save(&ctx, callback),
+                        callable: callable.clone(),
+                        node_id: node.instance_id(),
+                        signal_name: signal_name.clone(),
+                    },
+                );
                 let mut node = node.clone();
                 println!("Connect on {signal_name}");
                 node.connect(&StringName::from(&signal_name), &callable);
+                Ok(id)
+            } else {
+                Err(ctx.throw("Failed to get context".into_js(&ctx)?))
             }
-            Ok(())
         },
     )?;
     Ok(connect_fn)
