@@ -153,6 +153,7 @@ impl INode for JsRuntimeManager {
                             .restore(&ctx)
                             .and_then(|instance| instance.call_method("onProcess", (dt,))),
                     );
+                    while ctx.execute_pending_job() {} // run microtasks
                 });
             }
         }
