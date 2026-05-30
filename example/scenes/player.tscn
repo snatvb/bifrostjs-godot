@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://bctt6aspp070r"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_u8vuu"]
+load_path = "res://.godot/imported/character-base-sketch-taller.png-6f81d839dd0a75802b801d7750942b38.ctex"
+
+[node name="Player" type="Node2D" unique_id=1000409652]
+
+[node name="CharacterBaseSketchTaller" type="Sprite2D" parent="." unique_id=1734095627]
+texture_filter = 1
+texture = SubResource("CompressedTexture2D_u8vuu")
+region_enabled = true
+region_rect = Rect2(0, 0, 64, 64)
+
+[node name="JsNode" type="JsNode" parent="." unique_id=980241743]
+script_path = "uid://dxo4e8vonu3js"

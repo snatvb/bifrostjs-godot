@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext"]
+  },
+  "include": [
+    ".",
+    "./bifrostjs.d.ts"
+  ]
+}

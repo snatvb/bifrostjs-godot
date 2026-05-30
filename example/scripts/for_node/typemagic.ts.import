@@ -1,0 +1,14 @@
+[remap]
+
+importer="my_project.js_file_importer"
+type="Resource"
+uid="uid://0pmbkcwhuy7e"
+path="res://.godot/imported/typemagic.ts-4bf006a91bc60422da15fc45197e9126.res"
+
+[deps]
+
+source_file="res://scripts/for_node/typemagic.ts"
+dest_files=["res://.godot/imported/typemagic.ts-4bf006a91bc60422da15fc45197e9126.res"]
+
+[params]
+

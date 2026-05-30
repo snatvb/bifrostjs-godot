@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://cncuwu6rogri"]
+
+[ext_resource type="Texture2D" uid="uid://y6ec5g8c2gge" path="res://icon.svg" id="1_5hfv0"]
+[ext_resource type="Script" uid="uid://badkisymj6h0e" path="res://node.gd" id="2_0bhed"]
+
+[node name="Node2D" type="Node2D" unique_id=774847525]
+
+[node name="JsRuntimeManager" type="JsRuntimeManager" parent="." unique_id=1641517650]
+execution_limit = 2
+debug_enabled = true
+
+[node name="Icon" type="Sprite2D" parent="JsRuntimeManager" unique_id=220479034]
+position = Vector2(389, 254)
+texture = ExtResource("1_5hfv0")
+
+[node name="JsNode" type="JsNode" parent="JsRuntimeManager/Icon" unique_id=1141582601]
+script_path = "uid://djj8v2xk6g7rq"
+
+[node name="Node" type="Node" parent="JsRuntimeManager/Icon/JsNode" unique_id=1776341266]
+script = ExtResource("2_0bhed")
+
+[node name="Subchild" type="Sprite2D" parent="JsRuntimeManager/Icon/JsNode" unique_id=385681003]
+position = Vector2(580.5, 267.5)
+scale = Vector2(0.3828125, 0.3671875)
+texture = ExtResource("1_5hfv0")
+
+[node name="Icon2" type="Sprite2D" parent="JsRuntimeManager/Icon" unique_id=728890658]
+position = Vector2(0, 78)
+scale = Vector2(1.203125, 0.234375)
+texture = ExtResource("1_5hfv0")
+
+[node name="Control" type="Control" parent="JsRuntimeManager" unique_id=14477816]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="JsRuntimeManager/Control" unique_id=45202722]
+layout_mode = 0
+offset_left = 947.0
+offset_top = 1.0
+offset_right = 1148.0
+offset_bottom = 227.0
+
+[node name="Button" type="Button" parent="JsRuntimeManager/Control/VBoxContainer" unique_id=1849563616]
+layout_mode = 2
+text = "Click"
+
+[node name="Timer" type="Timer" parent="." unique_id=76572806]
+autostart = true
+
+[connection signal="timeout" from="Timer" to="JsRuntimeManager/Icon/JsNode/Node" method="_on_timer_timeout"]

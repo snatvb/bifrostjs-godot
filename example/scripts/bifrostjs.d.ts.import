@@ -1,0 +1,14 @@
+[remap]
+
+importer="my_project.js_file_importer"
+type="Resource"
+uid="uid://dsehn71tple2k"
+path="res://.godot/imported/bifrostjs.d.ts-da63a4c40ce65b44ee2619f633634a7a.res"
+
+[deps]
+
+source_file="res://scripts/bifrostjs.d.ts"
+dest_files=["res://.godot/imported/bifrostjs.d.ts-da63a4c40ce65b44ee2619f633634a7a.res"]
+
+[params]
+
