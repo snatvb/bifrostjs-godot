@@ -1,5 +1,6 @@
 use crate::colors::*;
 use crate::prelude::*;
+use crate::rect2::*;
 use js_core::vectors::*;
 
 pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
@@ -60,6 +61,13 @@ pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
             if let Some(c_class) = js::class::Class::<JsColor>::from_object(obj) {
                 let c = c_class.borrow();
                 return Ok(Variant::from(godot::builtin::Color::from_rgba(c.r, c.g, c.b, c.a)));
+            }
+            if let Some(r_class) = js::class::Class::<JsRect2>::from_object(obj) {
+                let internal = r_class.borrow();
+                return Ok(Variant::from(godot::builtin::Rect2::new(
+                    godot::prelude::Vector2::new(internal.position_x, internal.position_y),
+                    godot::prelude::Vector2::new(internal.size_x, internal.size_y),
+                )));
             }
             let mut gd_dict = Dictionary::<Variant, Variant>::new();
             let keys: Vec<String> = obj.keys().collect::<js::Result<Vec<_>>>()?;
@@ -134,6 +142,18 @@ where
                 a: c.a,
             };
             let class_instance = js::Class::instance(ctx.clone(), js_color)?;
+            Ok(class_instance.into_value())
+        }
+
+        VariantType::RECT2 => {
+            let r = variant.try_to::<Rect2>().unwrap_or_default();
+            let js_rect = JsRect2 {
+                position_x: r.position.x,
+                position_y: r.position.y,
+                size_x: r.size.x,
+                size_y: r.size.y,
+            };
+            let class_instance = js::Class::instance(ctx.clone(), js_rect)?;
             Ok(class_instance.into_value())
         }
 

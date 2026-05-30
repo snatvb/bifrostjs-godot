@@ -3,6 +3,7 @@ use crate::manager_context::JsSignalMeta;
 use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
 use gdjs::converters::{godot_variant_to_js, js_to_gd_args, js_to_godot_variant};
+use gdjs::proxy_rect::create_rect2_proxy;
 use gdjs::proxy_vec::create_vector2_proxy;
 use gdjs::util::{check_alive_handle, gd_alive_handle};
 use js_core::utils::extract_trace;
@@ -193,9 +194,16 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
             }
 
             let string_name = StringName::from(&prop);
+            let prop_variant = node.get(&string_name);
 
-            if node.get(&string_name).try_to::<Vector2>().is_ok() {
+            if prop_variant.try_to::<Vector2>().is_ok() {
                 let proxy = create_vector2_proxy(&ctx, node.clone(), string_name.clone())?;
+                target_obj.set(&cache_prop_name, proxy.clone())?;
+                return Ok(proxy);
+            }
+
+            if prop_variant.try_to::<Rect2>().is_ok() {
+                let proxy = create_rect2_proxy(&ctx, node.clone(), string_name.clone())?;
                 target_obj.set(&cache_prop_name, proxy.clone())?;
                 return Ok(proxy);
             }
@@ -431,6 +439,10 @@ fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
             let string_name = StringName::from(&prop);
 
             if node.get(&string_name).try_to::<Vector2>().is_ok() {
+                godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
+                return false;
+            }
+            if node.get(&string_name).try_to::<Rect2>().is_ok() {
                 godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
                 return false;
             }

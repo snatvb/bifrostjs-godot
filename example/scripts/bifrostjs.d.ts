@@ -140,9 +140,19 @@ interface Keys {
   readonly F12: 4194335
 }
 
-// ===== Типы-заглушки =====
+// ===== Маршаллинг типы =====
 
-type Rect2 = unknown        // @TODO: Rect2 marshalling
+declare class Rect2 {
+  constructor(x?: number, y?: number, width?: number, height?: number)
+  x: number
+  y: number
+  width: number
+  height: number
+  set(x: number, y: number, width: number, height: number): void
+}
+
+// ===== Типы-заглушки (требуют Rust-маршаллинга) =====
+
 type Vector3 = unknown      // @TODO: Vector3 marshalling
 type Transform2D = unknown  // @TODO: Transform2D marshalling
 type Transform3D = unknown  // @TODO: Transform3D marshalling

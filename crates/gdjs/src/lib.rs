@@ -4,5 +4,7 @@ pub mod converters;
 pub mod input;
 pub mod modules;
 mod prelude;
+pub mod proxy_rect;
 pub mod proxy_vec;
+pub mod rect2;
 pub mod util;
