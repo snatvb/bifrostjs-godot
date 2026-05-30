@@ -1,6 +1,7 @@
 use crate::colors::*;
 use crate::prelude::*;
 use crate::rect2::*;
+use crate::transform2d::*;
 use js_core::vectors::*;
 
 pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
@@ -67,6 +68,14 @@ pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
                 return Ok(Variant::from(godot::builtin::Rect2::new(
                     godot::prelude::Vector2::new(internal.position_x, internal.position_y),
                     godot::prelude::Vector2::new(internal.size_x, internal.size_y),
+                )));
+            }
+            if let Some(t_class) = js::class::Class::<JsTransform2D>::from_object(obj) {
+                let internal = t_class.borrow();
+                return Ok(Variant::from(godot::builtin::Transform2D::from_cols(
+                    godot::prelude::Vector2::new(internal.xx, internal.xy),
+                    godot::prelude::Vector2::new(internal.yx, internal.yy),
+                    godot::prelude::Vector2::new(internal.ox, internal.oy),
                 )));
             }
             let mut gd_dict = Dictionary::<Variant, Variant>::new();
@@ -154,6 +163,20 @@ where
                 size_y: r.size.y,
             };
             let class_instance = js::Class::instance(ctx.clone(), js_rect)?;
+            Ok(class_instance.into_value())
+        }
+
+        VariantType::TRANSFORM2D => {
+            let t = variant.try_to::<Transform2D>().unwrap_or_default();
+            let js_t2d = JsTransform2D {
+                xx: t.a.x,
+                xy: t.a.y,
+                yx: t.b.x,
+                yy: t.b.y,
+                ox: t.origin.x,
+                oy: t.origin.y,
+            };
+            let class_instance = js::Class::instance(ctx.clone(), js_t2d)?;
             Ok(class_instance.into_value())
         }
 

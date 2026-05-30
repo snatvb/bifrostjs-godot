@@ -76,6 +76,46 @@ pub fn with_handle_error<T, F: FnOnce(T)>(ctx: &js::Ctx<'_>, res: js::Result<T>,
     }
 }
 
+pub fn cache_key(prop: &str) -> String {
+    format!("_cache_{}", prop)
+}
+
+pub fn cache_fn_key(prop: &str) -> String {
+    format!("_cache_fn_{}", prop)
+}
+
+pub fn col_cache_key(prop: &str) -> String {
+    format!("_col_cache_{}", prop)
+}
+
+pub fn with_cache<'js, F>(
+    target: &js::Object<'js>,
+    key: &str,
+    factory: F,
+) -> js::Result<js::Value<'js>>
+where
+    F: FnOnce() -> js::Result<js::Value<'js>>,
+{
+    if target.contains_key(key).unwrap_or(false) {
+        if let Ok(cached) = target.get::<_, js::Value>(key) {
+            if !cached.is_undefined() {
+                return Ok(cached);
+            }
+        }
+    }
+    let val = factory()?;
+    target.set(key, val.clone())?;
+    Ok(val)
+}
+
+pub fn get_cached<'js>(target: &js::Object<'js>, key: &str) -> js::Result<Option<js::Value<'js>>> {
+    if target.contains_key(key).unwrap_or(false) {
+        Ok(target.get::<_, js::Value>(key).ok())
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn gd_alive_handle(ctx: &js::Ctx, alive: bool) -> js::Result<()> {
     if !alive {
         return Err(ctx.throw(

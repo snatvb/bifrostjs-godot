@@ -151,11 +151,21 @@ declare class Rect2 {
   set(x: number, y: number, width: number, height: number): void
 }
 
-// ===== Типы-заглушки (требуют Rust-маршаллинга) =====
+// ===== Маршаллинг типы =====
 
 type Vector3 = unknown      // @TODO: Vector3 marshalling
-type Transform2D = unknown  // @TODO: Transform2D marshalling
 type Transform3D = unknown  // @TODO: Transform3D marshalling
+
+declare class Transform2D {
+  constructor(xx: number, xy: number, yx: number, yy: number, ox: number, oy: number)
+  xx: number
+  xy: number
+  yx: number
+  yy: number
+  ox: number
+  oy: number
+  set_origin(x: number, y: number): void
+}
 
 // ===== GodotObjectBase =====
 

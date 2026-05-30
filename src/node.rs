@@ -4,8 +4,10 @@ use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
 use gdjs::converters::{godot_variant_to_js, js_to_gd_args, js_to_godot_variant};
 use gdjs::proxy_rect::create_rect2_proxy;
+use gdjs::proxy_transform::create_transform2d_proxy;
 use gdjs::proxy_vec::create_vector2_proxy;
 use gdjs::util::{check_alive_handle, gd_alive_handle};
+use gdjs::util::{cache_fn_key, cache_key, get_cached, with_cache};
 use js_core::utils::extract_trace;
 
 use js_core::js::IntoJs;
@@ -169,10 +171,8 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
                 manager_ctx: man_ctx.clone(),
             };
 
-            if target_obj.contains_key(&prop).unwrap_or(false) {
-                return Ok(target_obj
-                    .get(&prop)
-                    .unwrap_or_else(|_| js::Value::new_undefined(ctx.clone())));
+            if let Some(val) = get_cached(&target_obj, &prop)? {
+                return Ok(val);
             }
 
             let alive = node.is_instance_valid();
@@ -182,12 +182,7 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
 
             gd_alive_handle(&ctx, alive)?;
 
-            let cache_prop_name = format!("_cache_{}", prop);
-            if target_obj.contains_key(&cache_prop_name).unwrap_or(false)
-                && let Ok(cache) = target_obj.get(&cache_prop_name)
-            {
-                return cache;
-            }
+            let cache_prop_name = cache_key(&prop);
 
             if let Some(val) = get_special_property(&deps, &prop)? {
                 return Ok(val);
@@ -197,15 +192,21 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
             let prop_variant = node.get(&string_name);
 
             if prop_variant.try_to::<Vector2>().is_ok() {
-                let proxy = create_vector2_proxy(&ctx, node.clone(), string_name.clone())?;
-                target_obj.set(&cache_prop_name, proxy.clone())?;
-                return Ok(proxy);
+                return with_cache(&target_obj, &cache_prop_name, || {
+                    create_vector2_proxy(&ctx, node.clone(), string_name.clone())
+                });
             }
 
             if prop_variant.try_to::<Rect2>().is_ok() {
-                let proxy = create_rect2_proxy(&ctx, node.clone(), string_name.clone())?;
-                target_obj.set(&cache_prop_name, proxy.clone())?;
-                return Ok(proxy);
+                return with_cache(&target_obj, &cache_prop_name, || {
+                    create_rect2_proxy(&ctx, node.clone(), string_name.clone())
+                });
+            }
+
+            if prop_variant.try_to::<Transform2D>().is_ok() {
+                return with_cache(&target_obj, &cache_prop_name, || {
+                    create_transform2d_proxy(&ctx, node.clone(), string_name.clone())
+                });
             }
 
             if node.has_method(&string_name) {
@@ -229,7 +230,7 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
 
 #[inline(always)]
 fn make_cache_fn_name(prop: &str) -> String {
-    format!("_cache_fn_{prop}")
+    cache_fn_key(prop)
 }
 
 fn handle_method_call<'js>(
@@ -443,6 +444,10 @@ fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
                 return false;
             }
             if node.get(&string_name).try_to::<Rect2>().is_ok() {
+                godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
+                return false;
+            }
+            if node.get(&string_name).try_to::<Transform2D>().is_ok() {
                 godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
                 return false;
             }
