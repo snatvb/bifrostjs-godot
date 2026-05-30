@@ -1,5 +1,7 @@
+use std::cell::Cell;
 use std::collections::HashMap;
-use std::time::Instant;
+use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
@@ -8,8 +10,26 @@ use crate::bifrost_js_module::BifrostModule;
 use crate::node::create_godot_js_proxy;
 pub use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
+
 pub struct JsNodeBound {
     pub js_object: js::Persistent<js::Object<'static>>,
+}
+
+struct DeadlineGuard {
+    cell: Rc<Cell<Option<Instant>>>,
+}
+impl DeadlineGuard {
+    fn new(deadline: Rc<Cell<Option<Instant>>>, limit: u64) -> Self {
+        if limit > 0 {
+            deadline.set(Some(Instant::now() + Duration::from_millis(limit)));
+        }
+        Self { cell: deadline }
+    }
+}
+impl Drop for DeadlineGuard {
+    fn drop(&mut self) {
+        self.cell.set(None);
+    }
 }
 
 #[derive(GodotClass)]
@@ -22,7 +42,10 @@ pub struct JsRuntimeManager {
     process_queue: Vec<InstanceId>,
     ready_queue: Vec<Gd<Node>>,
     context: ManagerCtxRef,
+    deadline: Rc<Cell<Option<Instant>>>,
 
+    #[export]
+    execution_limit: u32, // in ms where 0 is unlimited
     #[export]
     debug_enabled: bool,
     start_time: Instant,
@@ -41,6 +64,15 @@ impl JsRuntimeManager {
 
         let runtime = js::Runtime::new().expect("JS Runtime create failure");
         runtime.set_loader(gdjs::modules::JsResolver, gdjs::modules::JsLoader);
+        if self.execution_limit > 0 {
+            let deadline = self.deadline.clone();
+            runtime.set_interrupt_handler(Some(Box::new(move || {
+                let Some(deadline) = deadline.get() else {
+                    return false;
+                };
+                deadline - Instant::now() <= Duration::from_millis(0)
+            })));
+        }
 
         let context = js::Context::full(&runtime).expect("JS Context failure");
 
@@ -112,16 +144,6 @@ impl JsRuntimeManager {
                         js_object: js::Persistent::save(&ctx, instance.clone()),
                     },
                 );
-
-                // if instance.contains_key("onReady").unwrap_or(false) {
-                //     gdjs::util::handle_error::<()>(&ctx, &instance.call_method("onReady", ()));
-                // }
-                //
-                // if instance.contains_key("onProcess").unwrap_or(false) {
-                //     gd_node.set_process(true);
-                // } else {
-                //     gd_node.set_process(false);
-                // }
             });
 
             println!("Register queued done");
@@ -222,6 +244,8 @@ impl INode for JsRuntimeManager {
     fn init(base: Base<Node>) -> Self {
         Self {
             base,
+            deadline: Default::default(),
+            execution_limit: Default::default(),
             js_runtime: None,
             js_context: None,
             bounds: Default::default(),
@@ -256,6 +280,8 @@ impl INode for JsRuntimeManager {
 
     fn process(&mut self, dt: f64) {
         let ctx = self.ctx().clone();
+
+        let _guard = DeadlineGuard::new(self.deadline.clone(), self.execution_limit as u64);
         ctx.with(|ctx| {
             self.process_ready(&ctx);
             for i in self.process_queue.iter() {
