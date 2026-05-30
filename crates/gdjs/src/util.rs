@@ -79,6 +79,6 @@ pub fn gd_alive_handle(ctx: &Ctx, alive: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn check_alive_handle(ctx: &Ctx, gdnode: &Gd<Node>) -> Result<()> {
+pub fn check_alive_handle(ctx: &Ctx, gdnode: &Gd<Object>) -> Result<()> {
     gd_alive_handle(ctx, gdnode.is_instance_valid())
 }

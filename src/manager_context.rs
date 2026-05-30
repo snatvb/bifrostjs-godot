@@ -3,10 +3,15 @@ use std::collections::{HashMap, VecDeque};
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
-use godot::classes::class_macros::private::virtuals::Os::Callable;
+use crate::node::create_godot_js_proxy;
+use crate::proxy_deps::ProxyDeps;
+use gdjs::converters::godot_variant_to_js;
+use godot::classes::class_macros::private::virtuals::Os::{Callable, Variant};
 use godot::global::godot_error;
 use godot::obj::InstanceId;
-use rquickjs::{Ctx, Function, Persistent};
+use godot::prelude::Gd;
+use rquickjs::function::Rest;
+use rquickjs::{Ctx, Function, Persistent, Value};
 
 #[derive(Debug)]
 pub struct JsSignalMeta {
@@ -17,11 +22,18 @@ pub struct JsSignalMeta {
     pub signal_name: String,
 }
 
+#[derive(Debug)]
+pub struct FiredSignal {
+    pub id: u64,
+    pub arguments: Vec<Variant>,
+}
+
 #[derive(Default, Debug)]
 pub struct JsManagerContext {
     last_id: u64,
     signal_registry: HashMap<u64, JsSignalMeta>,
-    signal_queue: VecDeque<u64>,
+    // signal_queue: VecDeque<u64>,
+    signal_queue: VecDeque<FiredSignal>,
 }
 
 impl JsManagerContext {
@@ -48,8 +60,11 @@ impl JsManagerContext {
         self.signal_registry.remove(&id);
     }
 
-    pub fn enqueue(&mut self, id: u64) {
-        self.signal_queue.push_back(id);
+    pub fn enqueue(&mut self, id: u64, arguments: &[&godot::prelude::Variant]) {
+        self.signal_queue.push_back(FiredSignal {
+            id,
+            arguments: arguments.iter().map(|&v| v.clone()).collect(),
+        });
     }
 
     pub fn queue_is_empty(&self) -> bool {
@@ -64,7 +79,7 @@ impl JsManagerContext {
         self.signal_registry.get(&id)
     }
 
-    pub(super) fn pop_signal(&mut self) -> Option<u64> {
+    pub(super) fn pop_signal(&mut self) -> Option<FiredSignal> {
         self.signal_queue.pop_front()
     }
 }
@@ -81,23 +96,38 @@ impl ManagerCtxRef {
         ManagerCtxWeak(Rc::downgrade(&self.0))
     }
 
-    pub fn process_queue(&self, ctx: &Ctx<'_>) {
+    pub fn process_queue<'js>(&self, ctx: &Ctx<'js>) {
+        let mut create_proxy = |ctx2: &Ctx<'js>, obj: Gd<godot::prelude::Object>| {
+            let deps = ProxyDeps {
+                ctx: ctx2.clone(),
+                node: obj,
+                manager_ctx: self.clone(),
+            };
+            create_godot_js_proxy(&deps)
+        };
+
         loop {
             let mut this = self.0.borrow_mut();
             let f = this
                 .pop_signal()
-                .and_then(|id| this.get_meta(id))
-                .and_then(|m| Some(m.id).zip(m.callback.clone().restore(ctx).ok()));
+                .and_then(|s| this.get_meta(s.id).zip(Some(s.arguments)))
+                .and_then(|(m, a)| Some((m.id, a, m.callback.clone().restore(ctx).ok()?)));
             drop(this);
 
-            match f {
-                Some((id, f)) => {
-                    let res: rquickjs::Result<()> = f.call(());
-                    if let Err(e) = res {
-                        godot_error!("Error inside JS Signal Callback (ID {}): {:?}", id, e);
+            if let Some((id, args, f)) = f {
+                let mut js_args: Vec<Value<'js>> = Vec::with_capacity(args.len());
+                for arg in args {
+                    match godot_variant_to_js(ctx, arg, &mut create_proxy) {
+                        Ok(v) => js_args.push(v),
+                        Err(_) => js_args.push(Value::new_undefined(ctx.clone())),
                     }
                 }
-                None => break,
+                let res: rquickjs::Result<()> = f.call((Rest(js_args),)).map(|_: Value| ());
+                if let Err(e) = res {
+                    godot_error!("Error inside JS Signal Callback (ID {}): {:?}", id, e);
+                }
+            } else {
+                break;
             }
         }
     }

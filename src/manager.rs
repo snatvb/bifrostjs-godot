@@ -73,7 +73,7 @@ impl JsRuntimeManager {
         ctx.with(|ctx| {
             let deps = ProxyDeps {
                 ctx: ctx.clone(),
-                node: gd_node.clone(),
+                node: gd_node.clone().upcast(),
                 manager_ctx,
             };
             let js_node_obj = create_godot_js_proxy(&deps);

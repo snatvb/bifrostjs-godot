@@ -5,9 +5,13 @@ use crate::util::gd_alive_handle;
 
 pub fn create_vector2_proxy<'js>(
     ctx: &Ctx<'js>,
-    gdnode: Gd<Node>,
+    gdobject: Gd<godot::prelude::Object>,
     prop_name: StringName,
 ) -> rquickjs::Result<Value<'js>> {
+    let gdnode = match gdobject.try_cast::<Node>() {
+        Ok(n) => n,
+        Err(_) => return Ok(Value::new_undefined(ctx.clone())),
+    };
     let vec_target = Object::new(ctx.clone())?;
     let vec_handler = Object::new(ctx.clone())?;
 
