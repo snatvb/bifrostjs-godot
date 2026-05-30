@@ -4,6 +4,7 @@ use std::time::Instant;
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
 
+use crate::bifrost_js_module::BifrostModule;
 use crate::node::create_godot_js_proxy;
 pub use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
@@ -46,6 +47,7 @@ impl JsRuntimeManager {
                 let globals = ctx.globals();
                 let console_obj = gdjs::console::create(&ctx);
                 globals.set("console", console_obj)?;
+                js::Module::evaluate_def::<BifrostModule, _>(ctx.clone(), "bifrostjs")?;
                 Ok(())
             })();
             gdjs::util::handle_error(&ctx, &res);
