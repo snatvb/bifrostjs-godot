@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use rquickjs::Persistent;
 
-pub use crate::prelude::*;
 use crate::node::create_godot_js_proxy;
+pub use crate::prelude::*;
+use crate::proxy_deps::ProxyDeps;
 pub struct JsNodeBound {
     pub js_object: Persistent<Object<'static>>,
 }
@@ -12,16 +13,17 @@ pub struct JsNodeBound {
 #[class(base=Node)]
 pub struct JsRuntimeManager {
     base: Base<Node>,
-    runtime: Option<Runtime>,
-    context: Option<Context>,
+    js_runtime: Option<Runtime>,
+    js_context: Option<Context>,
     bounds: HashMap<InstanceId, JsNodeBound>,
     process_queue: Vec<InstanceId>,
+    context: ManagerCtxRef,
 }
 
 #[godot_api]
 impl JsRuntimeManager {
     fn ensure_initialized(&mut self) {
-        if self.context.is_some() {
+        if self.js_context.is_some() {
             return;
         }
 
@@ -40,12 +42,12 @@ impl JsRuntimeManager {
             gdjs::util::handle_error(&ctx, &res);
         });
 
-        self.runtime = Some(runtime);
-        self.context = Some(context);
+        self.js_runtime = Some(runtime);
+        self.js_context = Some(context);
     }
 
     fn ctx(&self) -> &Context {
-        self.context.as_ref().expect("Context must be inited")
+        self.js_context.as_ref().expect("Context must be inited")
     }
 
     pub fn register_js_node(&mut self, mut gd_node: Gd<Node>, script_path: String) {
@@ -57,9 +59,15 @@ impl JsRuntimeManager {
         };
         self.ensure_initialized();
         let ctx = self.ctx().clone();
+        let manager_ctx = self.context.clone();
 
         ctx.with(|ctx| {
-            let js_node_obj = create_godot_js_proxy(&ctx, gd_node.clone());
+            let deps = ProxyDeps {
+                ctx: ctx.clone(),
+                node: gd_node.clone(),
+                manager_ctx,
+            };
+            let js_node_obj = create_godot_js_proxy(&deps);
 
             let res =
                 rquickjs::Module::declare(ctx.clone(), file.path.clone(), file.source.clone())
@@ -112,9 +120,10 @@ impl INode for JsRuntimeManager {
     fn init(base: Base<Node>) -> Self {
         Self {
             base,
-            runtime: None,
-            context: None,
+            js_runtime: None,
+            js_context: None,
             bounds: Default::default(),
+            context: Default::default(),
             process_queue: Vec::with_capacity(100),
         }
     }
@@ -134,6 +143,12 @@ impl INode for JsRuntimeManager {
                 });
             }
         }
+        self.process_queue.clear();
+    }
+
+    fn exit_tree(&mut self) {
+        self.context.borrow_mut().clear();
+        self.bounds.clear();
         self.process_queue.clear();
     }
 }
