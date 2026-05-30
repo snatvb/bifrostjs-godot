@@ -1,12 +1,12 @@
 use godot::prelude::*;
+use js_core::js;
 use js_core::utils::*;
-use rquickjs::{Ctx, Function, Object, Value, prelude::Rest};
 
-pub fn log(_ctx: Ctx<'_>, Rest(args): Rest<Value<'_>>) {
+pub fn log(_ctx: js::Ctx<'_>, js::prelude::Rest(args): js::prelude::Rest<js::Value<'_>>) {
     godot_print!("{}", convert_to_string(args.as_slice()));
 }
 
-pub fn trace(ctx: Ctx<'_>, Rest(args): Rest<Value<'_>>) {
+pub fn trace(ctx: js::Ctx<'_>, js::prelude::Rest(args): js::prelude::Rest<js::Value<'_>>) {
     godot_print!(
         "{}\n{}",
         convert_to_string(args.as_slice()),
@@ -14,7 +14,7 @@ pub fn trace(ctx: Ctx<'_>, Rest(args): Rest<Value<'_>>) {
     );
 }
 
-pub fn error(ctx: Ctx<'_>, Rest(args): Rest<Value<'_>>) {
+pub fn error(ctx: js::Ctx<'_>, js::prelude::Rest(args): js::prelude::Rest<js::Value<'_>>) {
     let error_msg = convert_to_string(args.as_slice());
     let mut stack_trace = String::new();
 
@@ -34,10 +34,10 @@ pub fn error(ctx: Ctx<'_>, Rest(args): Rest<Value<'_>>) {
     godot_error!("Error: {}\n{}", error_msg, stack_trace);
 }
 
-pub fn create<'a>(ctx: &Ctx<'a>) -> rquickjs::Result<Object<'a>> {
-    let console_obj = rquickjs::Object::new(ctx.clone())?;
-    console_obj.set("log", Function::new(ctx.clone(), log)?)?;
-    console_obj.set("trace", Function::new(ctx.clone(), trace)?)?;
-    console_obj.set("error", Function::new(ctx.clone(), error)?)?;
+pub fn create<'a>(ctx: &js::Ctx<'a>) -> js::Result<js::Object<'a>> {
+    let console_obj = js::Object::new(ctx.clone())?;
+    console_obj.set("log", js::Function::new(ctx.clone(), log)?)?;
+    console_obj.set("trace", js::Function::new(ctx.clone(), trace)?)?;
+    console_obj.set("error", js::Function::new(ctx.clone(), error)?)?;
     Ok(console_obj)
 }

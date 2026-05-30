@@ -7,9 +7,7 @@ use gdjs::proxy_vec::create_vector2_proxy;
 use gdjs::util::{check_alive_handle, gd_alive_handle};
 use js_core::utils::extract_trace;
 
-use rquickjs::Persistent;
-use rquickjs::prelude::Rest;
-use rquickjs::{IntoJs, Proxy, class::Trace, proxy::ProxyHandler};
+use js_core::js::IntoJs;
 
 #[derive(GodotClass)]
 #[class(base=Node)]
@@ -75,47 +73,47 @@ impl INode for JsNode {
     }
 }
 
-#[derive(rquickjs::JsLifetime)]
+#[derive(js::JsLifetime)]
 pub struct JsNodeProxy {
     #[allow(dead_code)]
     pub godot_node: Gd<godot::prelude::Object>,
 }
 
-impl<'js> Trace<'js> for JsNodeProxy {
-    fn trace<'a>(&self, _tracer: rquickjs::class::Tracer<'a, 'js>) {}
+impl<'js> js::class::Trace<'js> for JsNodeProxy {
+    fn trace<'a>(&self, _tracer: js::class::Tracer<'a, 'js>) {}
 }
 
-impl<'js> IntoJs<'js> for JsNodeProxy {
-    fn into_js(self, ctx: &Ctx<'js>) -> rquickjs::Result<Value<'js>> {
-        let obj = Object::new(ctx.clone())?;
+impl<'js> js::IntoJs<'js> for JsNodeProxy {
+    fn into_js(self, ctx: &js::Ctx<'js>) -> js::Result<js::Value<'js>> {
+        let obj = js::Object::new(ctx.clone())?;
         Ok(obj.into_value())
     }
 }
 
-pub fn create_godot_js_proxy<'js>(deps: &ProxyDeps<'js>) -> rquickjs::Result<Value<'js>> {
+pub fn create_godot_js_proxy<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Value<'js>> {
     let target = JsNodeProxy {
         godot_node: deps.node.clone(),
     };
     let target_js = target.into_js(&deps.ctx)?;
 
-    let handler = Object::new(deps.ctx.clone())?;
+    let handler = js::Object::new(deps.ctx.clone())?;
     handler.set("get", make_get_trap(deps)?)?;
     handler.set("set", make_set_trap(deps)?)?;
 
-    let proxy = Proxy::new(
+    let proxy = js::Proxy::new(
         deps.ctx.clone(),
         target_js,
-        ProxyHandler::from_object(handler)?,
+        js::proxy::ProxyHandler::from_object(handler)?,
     )?;
     Ok(proxy.into_value())
 }
 
-fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> rquickjs::Result<Function<'js>> {
+fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
     let node = deps.node.clone();
     let man_ctx = deps.manager_ctx.clone();
-    Function::new(
+    js::Function::new(
         deps.ctx.clone(),
-        move |ctx: Ctx<'js>, target_obj: Object<'js>, prop: String| -> JsResult<Value<'js>> {
+        move |ctx: js::Ctx<'js>, target_obj: js::Object<'js>, prop: String| -> js::Result<js::Value<'js>> {
             let deps = ProxyDeps {
                 ctx: ctx.clone(),
                 node: node.clone(),
@@ -125,12 +123,12 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> rquickjs::Result<Function<'js>> 
             if target_obj.contains_key(&prop).unwrap_or(false) {
                 return Ok(target_obj
                     .get(&prop)
-                    .unwrap_or_else(|_| Value::new_undefined(ctx.clone())));
+                    .unwrap_or_else(|_| js::Value::new_undefined(ctx.clone())));
             }
 
             let alive = node.is_instance_valid();
             if prop == "is_alive" {
-                return Ok(Value::new_bool(ctx.clone(), alive));
+                return Ok(js::Value::new_bool(ctx.clone(), alive));
             }
 
             gd_alive_handle(&ctx, alive)?;
@@ -159,7 +157,7 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> rquickjs::Result<Function<'js>> 
             }
 
             let godot_variant = node.get(&string_name);
-            let mut create_proxy = |ctx: &Ctx<'js>, v: Gd<godot::prelude::Object>| -> JsResult<Value<'js>> {
+            let mut create_proxy = |ctx: &js::Ctx<'js>, v: Gd<godot::prelude::Object>| -> js::Result<js::Value<'js>> {
                 let new_deps = ProxyDeps {
                     ctx: ctx.clone(),
                     node: v,
@@ -179,12 +177,12 @@ fn make_cache_fn_name(prop: &str) -> String {
 
 fn handle_method_call<'js>(
     deps: &ProxyDeps<'js>,
-    target_obj: &Object<'js>,
+    target_obj: &js::Object<'js>,
     prop: &str,
     string_name: StringName,
-) -> JsResult<Value<'js>> {
+) -> js::Result<js::Value<'js>> {
     let cache_fn_name = make_cache_fn_name(prop);
-    let cached_fn: Value<'js> = target_obj.get(&cache_fn_name)?;
+    let cached_fn: js::Value<'js> = target_obj.get(&cache_fn_name)?;
     if !cached_fn.is_undefined() && !cached_fn.is_null() {
         return Ok(cached_fn);
     }
@@ -200,16 +198,16 @@ fn handle_method_call<'js>(
 fn make_godot_method_fn<'js>(
     deps: &ProxyDeps<'js>,
     method_name: StringName,
-) -> rquickjs::Result<Function<'js>> {
+) -> js::Result<js::Function<'js>> {
     let node = deps.node.clone();
     let man_ctx = deps.manager_ctx.clone();
-    Function::new(
+    js::Function::new(
         deps.ctx.clone(),
-        move |ctx: Ctx<'js>, args: Rest<Value<'js>>| -> rquickjs::Result<Value<'js>> {
+        move |ctx: js::Ctx<'js>, args: js::prelude::Rest<js::Value<'js>>| -> js::Result<js::Value<'js>> {
             check_alive_handle(&ctx, &node)?;
 
             let result_variant = node.clone().call(&method_name, &js_to_gd_args(&ctx, args));
-            let mut create_proxy = |ctx: &Ctx<'js>, obj: Gd<godot::prelude::Object>| -> JsResult<Value<'js>> {
+            let mut create_proxy = |ctx: &js::Ctx<'js>, obj: Gd<godot::prelude::Object>| -> js::Result<js::Value<'js>> {
                 let child_deps = ProxyDeps {
                     ctx: ctx.clone(),
                     node: obj,
@@ -225,7 +223,7 @@ fn make_godot_method_fn<'js>(
 fn get_special_method<'js>(
     deps: &ProxyDeps<'js>,
     prop: &str,
-) -> rquickjs::Result<Option<Value<'js>>> {
+) -> js::Result<Option<js::Value<'js>>> {
     Ok(Some(match prop {
         "is_class" => make_is_class(&deps.ctx, &deps.node)?.into_value(),
         "connect" => make_connect(deps)?.into_value(),
@@ -234,12 +232,12 @@ fn get_special_method<'js>(
     }))
 }
 
-fn make_disconnect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
+fn make_disconnect<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
     let context_weak = deps.manager_ctx.downgrade();
     let node = deps.node.clone();
-    let connect_fn = Function::new(
+    let connect_fn = js::Function::new(
         deps.ctx.clone(),
-        move |ctx: Ctx<'js>, callback_id: u64| -> rquickjs::Result<()> {
+        move |ctx: js::Ctx<'js>, callback_id: u64| -> js::Result<()> {
             check_alive_handle(&ctx, &node)?;
             if let Some((meta, context)) = context_weak.upgrade().and_then(|context| {
                 let meta = context.borrow_mut().drop_callback(callback_id)?;
@@ -267,12 +265,12 @@ fn make_disconnect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
     Ok(connect_fn)
 }
 
-fn make_connect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
+fn make_connect<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
     let context_weak = deps.manager_ctx.downgrade();
     let node = deps.node.clone();
-    let connect_fn = Function::new(
+    let connect_fn = js::Function::new(
         deps.ctx.clone(),
-        move |ctx: Ctx<'js>, signal_name: String, callback: Function<'js>| {
+        move |ctx: js::Ctx<'js>, signal_name: String, callback: js::Function<'js>| {
             check_alive_handle(&ctx, &node)?;
             if let Some(context) = context_weak.upgrade() {
                 let id = context.borrow_mut().next_callback_id();
@@ -293,7 +291,7 @@ fn make_connect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
                     id,
                     JsSignalMeta {
                         id,
-                        callback: Persistent::save(&ctx, callback),
+                        callback: js::Persistent::save(&ctx, callback),
                         callable: callable.clone(),
                         node_id: node.instance_id(),
                         signal_name: signal_name.clone(),
@@ -314,35 +312,35 @@ fn make_connect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
 fn get_special_property<'js>(
     deps: &ProxyDeps<'js>,
     prop: &str,
-) -> rquickjs::Result<Option<Value<'js>>> {
+) -> js::Result<Option<js::Value<'js>>> {
     Ok(Some(match prop {
         "name" => {
             let name_str = deps
                 .try_node()
                 .map(|n| n.get_name().to_string())
                 .unwrap_or_default();
-            rquickjs::String::from_str(deps.ctx.clone(), name_str.as_str())
+            js::String::from_str(deps.ctx.clone(), name_str.as_str())
                 .map(|js_s| js_s.into_value())?
         }
         "class_type" => {
             let class_name = deps.node.get_class().to_string();
-            let js_str = rquickjs::String::from_str(deps.ctx.clone(), class_name.as_str())?;
+            let js_str = js::String::from_str(deps.ctx.clone(), class_name.as_str())?;
             js_str.into_value()
         }
-        "id" => Value::new_number(deps.ctx.clone(), deps.node.instance_id().to_i64() as f64),
+        "id" => js::Value::new_number(deps.ctx.clone(), deps.node.instance_id().to_i64() as f64),
         "parent" => match deps.try_node().and_then(|n| n.get_parent()) {
             Some(parent) => return create_godot_js_proxy(&deps.with_node(parent)).map(Some),
-            None => Value::new_null(deps.ctx.clone()),
+            None => js::Value::new_null(deps.ctx.clone()),
         },
         _ => return Ok(None),
     }))
 }
 
-fn make_is_class<'js>(ctx: &Ctx<'js>, node: &Gd<godot::prelude::Object>) -> rquickjs::Result<Function<'js>> {
+fn make_is_class<'js>(ctx: &js::Ctx<'js>, node: &Gd<godot::prelude::Object>) -> js::Result<js::Function<'js>> {
     let node = node.clone();
-    let is_class_fn = Function::new(
+    let is_class_fn = js::Function::new(
         ctx.clone(),
-        move |ctx: Ctx<'js>, class_name: String| -> rquickjs::Result<bool> {
+        move |ctx: js::Ctx<'js>, class_name: String| -> js::Result<bool> {
             check_alive_handle(&ctx, &node)?;
 
             let is_inherited = node.is_class(&class_name);
@@ -353,11 +351,11 @@ fn make_is_class<'js>(ctx: &Ctx<'js>, node: &Gd<godot::prelude::Object>) -> rqui
     Ok(is_class_fn)
 }
 
-fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> rquickjs::Result<Function<'js>> {
+fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
     let node = deps.node.clone();
-    Function::new(
+    js::Function::new(
         deps.ctx.clone(),
-        move |ctx: Ctx<'js>, _target_obj: Object<'js>, prop: String, value: Value<'js>| -> bool {
+        move |ctx: js::Ctx<'js>, _target_obj: js::Object<'js>, prop: String, value: js::Value<'js>| -> bool {
             let alive = node.is_instance_valid();
             if let Err(err) = gd_alive_handle(&ctx, alive) {
                 godot_error!("{}", err);

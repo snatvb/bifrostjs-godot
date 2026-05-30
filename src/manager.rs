@@ -3,21 +3,21 @@ use std::time::Instant;
 
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
-use rquickjs::Persistent;
+
 
 use crate::node::create_godot_js_proxy;
 pub use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
 pub struct JsNodeBound {
-    pub js_object: Persistent<Object<'static>>,
+    pub js_object: js::Persistent<js::Object<'static>>,
 }
 
 #[derive(GodotClass)]
 #[class(base=Node)]
 pub struct JsRuntimeManager {
     base: Base<Node>,
-    js_runtime: Option<Runtime>,
-    js_context: Option<Context>,
+    js_runtime: Option<js::Runtime>,
+    js_context: Option<js::Context>,
     bounds: HashMap<InstanceId, JsNodeBound>,
     process_queue: Vec<InstanceId>,
     context: ManagerCtxRef,
@@ -38,11 +38,11 @@ impl JsRuntimeManager {
 
         godot_print!("--- JS Engine initialization.. ---");
 
-        let runtime = Runtime::new().expect("JS Runtime create failure");
-        let context = Context::full(&runtime).expect("JS Context failure");
+        let runtime = js::Runtime::new().expect("JS Runtime create failure");
+        let context = js::Context::full(&runtime).expect("JS Context failure");
 
         context.with(|ctx| {
-            let res = (|| -> rquickjs::Result<()> {
+            let res = (|| -> js::Result<()> {
                 let globals = ctx.globals();
                 let console_obj = gdjs::console::create(&ctx);
                 globals.set("console", console_obj)?;
@@ -55,7 +55,7 @@ impl JsRuntimeManager {
         self.js_context = Some(context);
     }
 
-    fn ctx(&self) -> &Context {
+    fn ctx(&self) -> &js::Context {
         self.js_context.as_ref().expect("Context must be inited")
     }
 
@@ -79,15 +79,15 @@ impl JsRuntimeManager {
             let js_node_obj = create_godot_js_proxy(&deps);
 
             let res =
-                rquickjs::Module::declare(ctx.clone(), file.path.clone(), file.source.clone())
+                js::Module::declare(ctx.clone(), file.path.clone(), file.source.clone())
                     .and_then(|module| module.eval())
                     .and_then(|(module, _)| {
-                        let class_ctor: rquickjs::Function = module.get("default").unwrap();
+                        let class_ctor: js::Function = module.get("default").unwrap();
                         let constructor = class_ctor
                             .as_constructor()
-                            .ok_or(rquickjs::Error::InvalidExport)?;
+                            .ok_or(js::Error::InvalidExport)?;
 
-                        let instance: rquickjs::Object =
+                        let instance: js::Object =
                             constructor.construct((js_node_obj,)).unwrap();
 
                         Ok(instance)
@@ -102,7 +102,7 @@ impl JsRuntimeManager {
                     self.bounds.insert(
                         instance_id,
                         JsNodeBound {
-                            js_object: Persistent::save(&ctx, instance.clone()),
+                            js_object: js::Persistent::save(&ctx, instance.clone()),
                         },
                     );
                     gd_node.set_process(true);

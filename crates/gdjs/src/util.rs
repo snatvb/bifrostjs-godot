@@ -3,7 +3,7 @@ use std::io::Read;
 use godot::classes::file_access::ModeFlags;
 use godot::prelude::*;
 use godot::tools::GFile;
-use rquickjs::{Ctx, IntoJs, Result};
+use js_core::js::{self, IntoJs};
 
 pub struct JsFile {
     pub source: String,
@@ -31,8 +31,8 @@ pub fn load_js(godot_path: &str) -> Option<JsFile> {
     })
 }
 
-fn print_error(ctx: &Ctx<'_>, err: &rquickjs::Error) {
-    if let rquickjs::Error::Exception = err {
+fn print_error(ctx: &js::Ctx<'_>, err: &js::Error) {
+    if let js::Error::Exception = err {
         let error_value = ctx.catch();
 
         if let Some(exception) = error_value.as_exception() {
@@ -56,20 +56,20 @@ fn print_error(ctx: &Ctx<'_>, err: &rquickjs::Error) {
     }
 }
 
-pub fn handle_error<T>(ctx: &Ctx<'_>, res: &Result<T>) {
+pub fn handle_error<T>(ctx: &js::Ctx<'_>, res: &js::Result<T>) {
     if let Err(err) = res {
         print_error(ctx, err);
     }
 }
 
-pub fn with_handle_error<T, F: FnOnce(T)>(ctx: &Ctx<'_>, res: Result<T>, f: F) {
+pub fn with_handle_error<T, F: FnOnce(T)>(ctx: &js::Ctx<'_>, res: js::Result<T>, f: F) {
     match res {
         Ok(r) => f(r),
         Err(e) => print_error(ctx, &e),
     }
 }
 
-pub fn gd_alive_handle(ctx: &Ctx, alive: bool) -> Result<()> {
+pub fn gd_alive_handle(ctx: &js::Ctx, alive: bool) -> js::Result<()> {
     if !alive {
         return Err(ctx.throw(
             "Cannot read property: Godot Node instance is already deleted or invalid!"
@@ -79,6 +79,6 @@ pub fn gd_alive_handle(ctx: &Ctx, alive: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn check_alive_handle(ctx: &Ctx, gdnode: &Gd<Object>) -> Result<()> {
+pub fn check_alive_handle(ctx: &js::Ctx, gdnode: &Gd<Object>) -> js::Result<()> {
     gd_alive_handle(ctx, gdnode.is_instance_valid())
 }

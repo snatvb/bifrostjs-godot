@@ -1,28 +1,28 @@
 use godot::prelude::*;
-use rquickjs::{Ctx, Function, Object, Proxy, Result, Value, proxy::ProxyHandler};
+use js_core::js;
 
 use crate::util::gd_alive_handle;
 
 pub fn create_vector2_proxy<'js>(
-    ctx: &Ctx<'js>,
+    ctx: &js::Ctx<'js>,
     gdobject: Gd<godot::prelude::Object>,
     prop_name: StringName,
-) -> rquickjs::Result<Value<'js>> {
+) -> js::Result<js::Value<'js>> {
     let gdnode = match gdobject.try_cast::<Node>() {
         Ok(n) => n,
-        Err(_) => return Ok(Value::new_undefined(ctx.clone())),
+        Err(_) => return Ok(js::Value::new_undefined(ctx.clone())),
     };
-    let vec_target = Object::new(ctx.clone())?;
-    let vec_handler = Object::new(ctx.clone())?;
+    let vec_target = js::Object::new(ctx.clone())?;
+    let vec_handler = js::Object::new(ctx.clone())?;
 
     let node_get = gdnode.clone();
     let prop_get = prop_name.clone();
-    let get = Function::new(
+    let get = js::Function::new(
         ctx.clone(),
-        move |ctx: Ctx<'js>, _target: Object<'js>, prop: String| -> Result<Value<'js>> {
+        move |ctx: js::Ctx<'js>, _target: js::Object<'js>, prop: String| -> js::Result<js::Value<'js>> {
             let alive = node_get.is_instance_valid();
             if prop == "is_alive" {
-                return Ok(Value::new_bool(ctx.clone(), alive));
+                return Ok(js::Value::new_bool(ctx.clone(), alive));
             }
 
             gd_alive_handle(&ctx, alive)?;
@@ -37,15 +37,15 @@ pub fn create_vector2_proxy<'js>(
             } else {
                 0.0f32
             };
-            Ok(Value::new_number(ctx, res as f64))
+            Ok(js::Value::new_number(ctx, res as f64))
         },
     )?;
 
     let node_set = gdnode;
     let prop_set = prop_name;
-    let set = Function::new(
+    let set = js::Function::new(
         ctx.clone(),
-        move |ctx: Ctx<'js>, _target: Object<'js>, prop: String, val: f32| -> bool {
+        move |ctx: js::Ctx<'js>, _target: js::Object<'js>, prop: String, val: f32| -> bool {
             let alive = node_set.is_instance_valid();
             if let Err(err) = gd_alive_handle(&ctx, alive) {
                 godot_error!("{}", err);
@@ -69,10 +69,10 @@ pub fn create_vector2_proxy<'js>(
     vec_handler.set("get", get)?;
     vec_handler.set("set", set)?;
 
-    let proxy = Proxy::new(
+    let proxy = js::Proxy::new(
         ctx.clone(),
         vec_target,
-        ProxyHandler::from_object(vec_handler)?,
+        js::proxy::ProxyHandler::from_object(vec_handler)?,
     )?;
     Ok(proxy.into_value())
 }

@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 #[derive(Clone)]
 pub struct ProxyDeps<'js> {
-    pub ctx: Ctx<'js>,
+    pub ctx: js::Ctx<'js>,
     pub node: Gd<godot::prelude::Object>,
     pub manager_ctx: ManagerCtxRef,
 }

@@ -10,12 +10,11 @@ use godot::classes::class_macros::private::virtuals::Os::{Callable, Variant};
 use godot::global::godot_error;
 use godot::obj::InstanceId;
 use godot::prelude::Gd;
-use rquickjs::function::Rest;
-use rquickjs::{Ctx, Function, Persistent, Value};
+use js_core::js;
 
 #[derive(Debug)]
 pub struct JsSignalMeta {
-    pub callback: Persistent<Function<'static>>,
+    pub callback: js::Persistent<js::Function<'static>>,
     pub callable: Callable,
     pub id: u64,
     pub node_id: InstanceId,
@@ -96,8 +95,8 @@ impl ManagerCtxRef {
         ManagerCtxWeak(Rc::downgrade(&self.0))
     }
 
-    pub fn process_queue<'js>(&self, ctx: &Ctx<'js>) {
-        let mut create_proxy = |ctx2: &Ctx<'js>, obj: Gd<godot::prelude::Object>| {
+    pub fn process_queue<'js>(&self, ctx: &js::Ctx<'js>) {
+        let mut create_proxy = |ctx2: &js::Ctx<'js>, obj: Gd<godot::prelude::Object>| {
             let deps = ProxyDeps {
                 ctx: ctx2.clone(),
                 node: obj,
@@ -115,14 +114,16 @@ impl ManagerCtxRef {
             drop(this);
 
             if let Some((id, args, f)) = f {
-                let mut js_args: Vec<Value<'js>> = Vec::with_capacity(args.len());
+                let mut js_args: Vec<js::Value<'js>> = Vec::with_capacity(args.len());
                 for arg in args {
                     match godot_variant_to_js(ctx, arg, &mut create_proxy) {
                         Ok(v) => js_args.push(v),
-                        Err(_) => js_args.push(Value::new_undefined(ctx.clone())),
+                        Err(_) => js_args.push(js::Value::new_undefined(ctx.clone())),
                     }
                 }
-                let res: rquickjs::Result<()> = f.call((Rest(js_args),)).map(|_: Value| ());
+                let res: js::Result<()> = f
+                    .call((js::function::Rest(js_args),))
+                    .map(|_: js::Value| ());
                 if let Err(e) = res {
                     godot_error!("Error inside JS Signal Callback (ID {}): {:?}", id, e);
                 }
