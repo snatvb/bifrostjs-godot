@@ -248,7 +248,7 @@ fn make_godot_method_fn<'js>(
               -> js::Result<js::Value<'js>> {
             check_alive_handle(&ctx, &node)?;
 
-            let result_variant = node.clone().call(&method_name, &js_to_gd_args(&ctx, args)?);
+            let result_variant = node.clone().call(&method_name, &js_to_gd_args(args)?);
             let mut create_proxy = |ctx: &js::Ctx<'js>,
                                     obj: Gd<godot::prelude::Object>|
              -> js::Result<js::Value<'js>> {
@@ -422,7 +422,7 @@ fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
                 godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
                 return false;
             }
-            let godot_variant = match js_to_godot_variant(&ctx, value) {
+            let godot_variant = match js_to_godot_variant(value) {
                 Ok(v) => v,
                 Err(err) => {
                     godot_error!("js_to_godot_variant error: {:?}", err);

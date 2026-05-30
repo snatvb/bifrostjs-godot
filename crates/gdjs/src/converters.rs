@@ -1,28 +1,67 @@
 use crate::prelude::*;
 use js_core::vectors::*;
 
-pub fn js_to_godot_variant(_ctx: &js::Ctx<'_>, val: js::Value<'_>) -> Variant {
-    if val.is_string() {
-        if let Some(js_str) = val.as_string() {
-            if let Ok(rust_str) = js_str.to_string() {
-                return Variant::from(GString::from(rust_str.as_str()));
+pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
+    match val.type_of() {
+        js::Type::Null | js::Type::Undefined => Ok(Variant::nil()),
+
+        js::Type::Bool => Ok(Variant::from(val.as_bool().unwrap_or(false))),
+
+        js::Type::Int => Ok(Variant::from(val.as_int().unwrap_or(0))),
+
+        js::Type::Float => Ok(Variant::from(val.as_number().unwrap_or(0.0))),
+
+        js::Type::String => {
+            let js_str = val.as_string().unwrap();
+            let rust_str = js_str.to_string().unwrap_or_default();
+            Ok(Variant::from(GString::from(rust_str.as_str())))
+        }
+
+        js::Type::BigInt => {
+            let bi = val.as_big_int().unwrap();
+            let n = bi.clone().to_i64().unwrap_or(0);
+            Ok(Variant::from(n))
+        }
+
+        js::Type::Array => {
+            let js_array = val.as_array().unwrap();
+            let len = js_array.len();
+            let mut gd_array = VarArray::new();
+            gd_array.resize(len, &Variant::nil());
+            for i in 0..len {
+                let item: js::Value = js_array.get(i)?;
+                let gd_item = js_to_godot_variant(item)?;
+                gd_array.set(i, &gd_item);
             }
+            Ok(Variant::from(gd_array))
         }
-    } else if val.is_number() {
-        if let Some(js_num) = val.as_number() {
-            return Variant::from(js_num);
+
+        js::Type::Object => {
+            let obj = val.as_object().unwrap();
+            if let Some(v2_class) = js::class::Class::<JsVector2>::from_object(obj) {
+                let internal = v2_class.borrow();
+                return Ok(Variant::from(godot::prelude::Vector2::new(
+                    internal.x, internal.y,
+                )));
+            }
+            let mut gd_dict = Dictionary::<Variant, Variant>::new();
+            let keys: Vec<String> = obj.keys().collect::<js::Result<Vec<_>>>()?;
+            for key in keys {
+                let js_value: js::Value = obj.get(&key)?;
+                let gd_value = js_to_godot_variant(js_value)?;
+                gd_dict.set(&Variant::from(key), &gd_value);
+            }
+            Ok(Variant::from(gd_dict))
         }
-    } else if val.is_bool() {
-        if let Some(js_bool) = val.as_bool() {
-            return Variant::from(js_bool);
-        }
-    } else if let Some(obj) = val.as_object() {
-        if let Some(v2_class) = js::class::Class::<JsVector2>::from_object(&obj) {
-            let internal = v2_class.borrow();
-            return Variant::from(godot::prelude::Vector2::new(internal.x, internal.y));
+
+        _ => {
+            godot_warn!(
+                "Bifrost Marshalling: Unsupported JS type '{:?}'",
+                val.type_name()
+            );
+            Ok(Variant::nil())
         }
     }
-    Variant::nil()
 }
 
 pub fn godot_variant_to_js<'js, F>(
@@ -57,7 +96,7 @@ where
         }
 
         VariantType::STRING | VariantType::STRING_NAME => {
-            let s = variant.to_string(); // Безопасно для String и StringName
+            let s = variant.to_string();
             let js_str = js::String::from_str(ctx.clone(), &s)?;
             Ok(js_str.into_value())
         }
@@ -116,10 +155,10 @@ where
     }
 }
 
-pub fn js_to_gd_args<'js>(ctx: &js::Ctx<'js>, args: js::prelude::Rest<js::Value<'js>>) -> Vec<Variant> {
+pub fn js_to_gd_args<'js>(args: js::prelude::Rest<js::Value<'js>>) -> js::Result<Vec<Variant>> {
     let mut godot_args = Vec::with_capacity(args.0.len());
     for arg in args.0 {
-        godot_args.push(js_to_godot_variant(ctx, arg));
+        godot_args.push(js_to_godot_variant(arg)?);
     }
-    godot_args
+    Ok(godot_args)
 }
