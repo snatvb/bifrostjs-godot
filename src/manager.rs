@@ -4,7 +4,6 @@ use std::time::Instant;
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
 
-
 use crate::node::create_godot_js_proxy;
 pub use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
@@ -20,6 +19,7 @@ pub struct JsRuntimeManager {
     js_context: Option<js::Context>,
     bounds: HashMap<InstanceId, JsNodeBound>,
     process_queue: Vec<InstanceId>,
+    register_queue: Vec<Gd<Node>>,
     context: ManagerCtxRef,
 
     #[export]
@@ -59,7 +59,7 @@ impl JsRuntimeManager {
         self.js_context.as_ref().expect("Context must be inited")
     }
 
-    pub fn register_js_node(&mut self, mut gd_node: Gd<Node>, script_path: String) {
+    pub fn register_js_node(&mut self, gd_node: Gd<Node>, script_path: String) {
         let instance_id = gd_node.instance_id();
 
         let file = match gdjs::util::load_js(&script_path) {
@@ -78,41 +78,41 @@ impl JsRuntimeManager {
             };
             let js_node_obj = create_godot_js_proxy(&deps);
 
-            let res =
-                js::Module::declare(ctx.clone(), file.path.clone(), file.source.clone())
-                    .and_then(|module| module.eval())
-                    .and_then(|(module, _)| {
-                        let class_ctor: js::Function = module.get("default").unwrap();
-                        let constructor = class_ctor
-                            .as_constructor()
-                            .ok_or(js::Error::InvalidExport)?;
+            let res = js::Module::declare(ctx.clone(), file.path.clone(), file.source.clone())
+                .and_then(|module| module.eval())
+                .and_then(|(module, _)| {
+                    let class_ctor: js::Function = module.get("default").unwrap();
+                    let constructor = class_ctor
+                        .as_constructor()
+                        .ok_or(js::Error::InvalidExport)?;
 
-                        let instance: js::Object =
-                            constructor.construct((js_node_obj,)).unwrap();
+                    let instance: js::Object = constructor.construct((js_node_obj,)).unwrap();
 
-                        Ok(instance)
-                    });
+                    Ok(instance)
+                });
 
             gdjs::util::with_handle_error(&ctx, res, |instance| {
-                if instance.contains_key("onReady").unwrap_or(false) {
-                    gdjs::util::handle_error::<()>(&ctx, &instance.call_method("onReady", ()));
-                }
+                self.bounds.insert(
+                    instance_id,
+                    JsNodeBound {
+                        js_object: js::Persistent::save(&ctx, instance.clone()),
+                    },
+                );
 
-                if instance.contains_key("onProcess").unwrap_or(false) {
-                    self.bounds.insert(
-                        instance_id,
-                        JsNodeBound {
-                            js_object: js::Persistent::save(&ctx, instance.clone()),
-                        },
-                    );
-                    gd_node.set_process(true);
-                } else {
-                    gd_node.set_process(false);
-                }
+                // if instance.contains_key("onReady").unwrap_or(false) {
+                //     gdjs::util::handle_error::<()>(&ctx, &instance.call_method("onReady", ()));
+                // }
+                //
+                // if instance.contains_key("onProcess").unwrap_or(false) {
+                //     gd_node.set_process(true);
+                // } else {
+                //     gd_node.set_process(false);
+                // }
             });
 
-            println!("Register done");
+            println!("Register queued done");
         });
+        self.register_queue.push(gd_node);
     }
 
     pub fn unregister_js_node(&mut self, id: InstanceId) {
@@ -123,17 +123,39 @@ impl JsRuntimeManager {
         self.process_queue.push(id);
     }
 
-    fn process_signals(&mut self) {
+    fn process_registrations(&mut self, ctx: &js::Ctx<'_>) {
+        if self.register_queue.is_empty() {
+            return;
+        }
+
+        while let Some(mut node) = self.register_queue.pop().filter(|n| n.is_instance_valid())
+            && let Some(bound) = self.bounds.get(&node.instance_id())
+        {
+            let Ok(instance) = &bound.js_object.clone().restore(ctx) else {
+                return;
+            };
+
+            if instance.contains_key("onReady").unwrap_or(false) {
+                gdjs::util::handle_error::<()>(ctx, &instance.call_method("onReady", ()));
+            }
+
+            if instance.contains_key("onProcess").unwrap_or(false) {
+                node.set_process(true);
+            } else {
+                node.set_process(false);
+            }
+            println!("Register {} queued done", node.get_name());
+        }
+    }
+
+    fn process_signals(&mut self, ctx: &js::Ctx<'_>) {
         let context_guard = self.context.borrow();
         if context_guard.queue_is_empty() {
             return;
         }
         drop(context_guard);
 
-        let ctx = self.ctx();
-        ctx.with(|ctx| {
-            self.context.process_queue(&ctx);
-        });
+        self.context.process_queue(ctx);
     }
 
     fn update_debug(&mut self, dt: f64) {
@@ -190,6 +212,7 @@ impl INode for JsRuntimeManager {
             js_context: None,
             bounds: Default::default(),
             context: Default::default(),
+            register_queue: Default::default(),
             process_queue: Vec::with_capacity(100),
             debug_enabled: false,
             start_time: Instant::now(),
@@ -218,7 +241,9 @@ impl INode for JsRuntimeManager {
     }
 
     fn process(&mut self, dt: f64) {
-        self.ctx().with(|ctx| {
+        let ctx = self.ctx().clone();
+        ctx.with(|ctx| {
+            self.process_registrations(&ctx);
             for i in self.process_queue.iter() {
                 if let Some(bound) = self.bounds.get(i) {
                     gdjs::util::handle_error::<()>(
@@ -232,10 +257,10 @@ impl INode for JsRuntimeManager {
                     while ctx.execute_pending_job() {} // run microtasks
                 }
             }
+            self.process_signals(&ctx);
             ctx.run_gc();
         });
         self.process_queue.clear();
-        self.process_signals();
 
         self.update_debug(dt);
     }
@@ -244,5 +269,6 @@ impl INode for JsRuntimeManager {
         self.context.borrow_mut().clear();
         self.bounds.clear();
         self.process_queue.clear();
+        self.register_queue.clear();
     }
 }

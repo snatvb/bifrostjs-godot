@@ -31,7 +31,6 @@ pub struct FiredSignal {
 pub struct JsManagerContext {
     last_id: u64,
     signal_registry: HashMap<u64, JsSignalMeta>,
-    // signal_queue: VecDeque<u64>,
     signal_queue: VecDeque<FiredSignal>,
 }
 

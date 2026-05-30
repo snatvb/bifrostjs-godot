@@ -21,6 +21,42 @@ pub struct JsNode {
 }
 
 #[godot_api]
+impl JsNode {
+    #[func]
+    pub fn register_signal(&mut self, signal_name: String) {
+        if self.base().has_user_signal(&signal_name) {
+            godot_error!(
+                "Bifrost Warn: signal with the name '{}' already registered",
+                signal_name
+            );
+            return;
+        }
+
+        println!("Register {signal_name}");
+        self.base_mut().add_user_signal(&signal_name);
+    }
+
+    #[func]
+    pub fn emit_signal(&mut self, signal_name: String, args: Array<Variant>) {
+        let signal_string_name = StringName::from(&signal_name);
+
+        if !self.base().has_user_signal(&signal_string_name) {
+            godot_error!(
+                "Bifrost Error: Try to emit unregistered signal '{}'",
+                signal_name
+            );
+            return;
+        }
+
+        let variant_vec: Vec<Variant> = args.iter_shared().collect();
+
+        println!("Emit {signal_name}");
+        self.base_mut()
+            .emit_signal(&signal_string_name, &variant_vec);
+    }
+}
+
+#[godot_api]
 impl INode for JsNode {
     fn init(base: Base<Node>) -> Self {
         Self {
@@ -113,7 +149,10 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
     let man_ctx = deps.manager_ctx.clone();
     js::Function::new(
         deps.ctx.clone(),
-        move |ctx: js::Ctx<'js>, target_obj: js::Object<'js>, prop: String| -> js::Result<js::Value<'js>> {
+        move |ctx: js::Ctx<'js>,
+              target_obj: js::Object<'js>,
+              prop: String|
+              -> js::Result<js::Value<'js>> {
             let deps = ProxyDeps {
                 ctx: ctx.clone(),
                 node: node.clone(),
@@ -157,14 +196,15 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
             }
 
             let godot_variant = node.get(&string_name);
-            let mut create_proxy = |ctx: &js::Ctx<'js>, v: Gd<godot::prelude::Object>| -> js::Result<js::Value<'js>> {
-                let new_deps = ProxyDeps {
-                    ctx: ctx.clone(),
-                    node: v,
-                    manager_ctx: man_ctx.clone(),
+            let mut create_proxy =
+                |ctx: &js::Ctx<'js>, v: Gd<godot::prelude::Object>| -> js::Result<js::Value<'js>> {
+                    let new_deps = ProxyDeps {
+                        ctx: ctx.clone(),
+                        node: v,
+                        manager_ctx: man_ctx.clone(),
+                    };
+                    create_godot_js_proxy(&new_deps)
                 };
-                create_godot_js_proxy(&new_deps)
-            };
             godot_variant_to_js(&ctx, godot_variant, &mut create_proxy)
         },
     )
@@ -203,11 +243,15 @@ fn make_godot_method_fn<'js>(
     let man_ctx = deps.manager_ctx.clone();
     js::Function::new(
         deps.ctx.clone(),
-        move |ctx: js::Ctx<'js>, args: js::prelude::Rest<js::Value<'js>>| -> js::Result<js::Value<'js>> {
+        move |ctx: js::Ctx<'js>,
+              args: js::prelude::Rest<js::Value<'js>>|
+              -> js::Result<js::Value<'js>> {
             check_alive_handle(&ctx, &node)?;
 
-            let result_variant = node.clone().call(&method_name, &js_to_gd_args(&ctx, args));
-            let mut create_proxy = |ctx: &js::Ctx<'js>, obj: Gd<godot::prelude::Object>| -> js::Result<js::Value<'js>> {
+            let result_variant = node.clone().call(&method_name, &js_to_gd_args(&ctx, args)?);
+            let mut create_proxy = |ctx: &js::Ctx<'js>,
+                                    obj: Gd<godot::prelude::Object>|
+             -> js::Result<js::Value<'js>> {
                 let child_deps = ProxyDeps {
                     ctx: ctx.clone(),
                     node: obj,
@@ -252,7 +296,11 @@ fn make_disconnect<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> 
                         "{}\n{}",
                         format!(
                             "Incorrect node disconnect. Node({}) has no callback with id: {}",
-                            node.clone().try_cast::<Node>().ok().map(|n| n.get_name().to_string()).unwrap_or_default(),
+                            node.clone()
+                                .try_cast::<Node>()
+                                .ok()
+                                .map(|n| n.get_name().to_string())
+                                .unwrap_or_default(),
                             callback_id
                         ),
                         extract_trace(&ctx)
@@ -336,7 +384,10 @@ fn get_special_property<'js>(
     }))
 }
 
-fn make_is_class<'js>(ctx: &js::Ctx<'js>, node: &Gd<godot::prelude::Object>) -> js::Result<js::Function<'js>> {
+fn make_is_class<'js>(
+    ctx: &js::Ctx<'js>,
+    node: &Gd<godot::prelude::Object>,
+) -> js::Result<js::Function<'js>> {
     let node = node.clone();
     let is_class_fn = js::Function::new(
         ctx.clone(),
@@ -355,7 +406,11 @@ fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
     let node = deps.node.clone();
     js::Function::new(
         deps.ctx.clone(),
-        move |ctx: js::Ctx<'js>, _target_obj: js::Object<'js>, prop: String, value: js::Value<'js>| -> bool {
+        move |ctx: js::Ctx<'js>,
+              _target_obj: js::Object<'js>,
+              prop: String,
+              value: js::Value<'js>|
+              -> bool {
             let alive = node.is_instance_valid();
             if let Err(err) = gd_alive_handle(&ctx, alive) {
                 godot_error!("{}", err);
@@ -367,7 +422,13 @@ fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
                 godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
                 return false;
             }
-            let godot_variant = js_to_godot_variant(&ctx, value);
+            let godot_variant = match js_to_godot_variant(&ctx, value) {
+                Ok(v) => v,
+                Err(err) => {
+                    godot_error!("js_to_godot_variant error: {:?}", err);
+                    return false;
+                }
+            };
 
             let mut godot_node_cloned_set = node.clone();
             godot_node_cloned_set.set(&string_name, &godot_variant);
