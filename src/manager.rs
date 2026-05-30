@@ -110,8 +110,21 @@ impl JsRuntimeManager {
         self.bounds.remove(&id);
     }
 
-    pub fn process_enqueue(&mut self, id: InstanceId) {
+    pub fn enqueue_process(&mut self, id: InstanceId) {
         self.process_queue.push(id);
+    }
+
+    fn process_signals(&mut self) {
+        let context_guard = self.context.borrow();
+        if context_guard.queue_is_empty() {
+            return;
+        }
+        drop(context_guard);
+
+        let ctx = self.ctx();
+        ctx.with(|ctx| {
+            self.context.borrow_mut().process_queue(&ctx);
+        });
     }
 }
 
@@ -144,6 +157,7 @@ impl INode for JsRuntimeManager {
             }
         }
         self.process_queue.clear();
+        self.process_signals();
     }
 
     fn exit_tree(&mut self) {

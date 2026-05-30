@@ -7,6 +7,7 @@ pub struct JsSignalBridge {
     callback_id: u64,
     base: Base<RefCounted>,
 }
+
 #[godot_api]
 impl JsSignalBridge {
     pub fn create(callback_id: u64, context: ManagerCtxWeak) -> Gd<Self> {
@@ -19,6 +20,7 @@ impl JsSignalBridge {
 
     #[func]
     fn on_signal_fired(&self) {
+        println!("SIGNAAAL");
         if let Some(context) = self.context.upgrade() {
             context.borrow_mut().enqueue(self.callback_id);
         }

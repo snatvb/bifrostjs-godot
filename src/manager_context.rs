@@ -3,6 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
+use godot::global::godot_error;
 use rquickjs::{Ctx, Function, Persistent};
 
 #[derive(Default, Debug)]
@@ -36,6 +37,23 @@ impl JsManagerContext {
 
     pub fn enqueue(&mut self, id: u64) {
         self.signal_queue.push_back(id);
+    }
+
+    pub fn queue_is_empty(&self) -> bool {
+        self.signal_queue.is_empty()
+    }
+
+    pub fn process_queue(&mut self, ctx: &Ctx<'_>) {
+        while let Some(id) = self.signal_queue.pop_front() {
+            if let Some(persistent_func) = self.signal_registry.get(&id)
+                && let Ok(func) = persistent_func.clone().restore(ctx)
+            {
+                let res: rquickjs::Result<()> = func.call(());
+                if let Err(e) = res {
+                    godot_error!("Error inside JS Signal Callback (ID {}): {:?}", id, e);
+                }
+            }
+        }
     }
 }
 

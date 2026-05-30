@@ -1,7 +1,6 @@
 use crate::manager::JsRuntimeManager;
 use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
-use crate::signal_bridge::JsSignalBridge;
 use gdjs::converters::{godot_variant_to_js, js_to_gd_args, js_to_godot_variant};
 use gdjs::proxy_vec::create_vector2_proxy;
 use gdjs::util::{check_alive_handle, gd_alive_handle};
@@ -34,7 +33,7 @@ impl INode for JsNode {
     fn process(&mut self, _: f64) {
         let instance_id = self.base().instance_id();
         if let Some(manager) = self.manager.as_mut() {
-            manager.bind_mut().process_enqueue(instance_id);
+            manager.bind_mut().enqueue_process(instance_id);
         }
     }
 
@@ -228,6 +227,29 @@ fn get_special_method<'js>(
     }))
 }
 
+// fn make_disconnect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
+//     let context_weak = deps.manager_ctx.downgrade();
+//     let node = deps.node.clone();
+//     let connect_fn = Function::new(
+//         deps.ctx.clone(),
+//         move |ctx: Ctx<'js>,
+//               signal_name: String,
+//               callback: Function<'js>|
+//               -> rquickjs::Result<()> {
+//             check_alive_handle(&ctx, &node)?;
+//             if let Some(context) = context_weak.upgrade() {
+//                 let id = context.borrow_mut().save_callback(&ctx, callback);
+//                 let bridge = JsSignalBridge::create(id, context_weak.clone());
+//                 let callable = Callable::from_object_method(&bridge, "on_signal_fired");
+//                 let mut node = node.clone();
+//                 node.connect(&StringName::from(&signal_name), &callable);
+//             }
+//             Ok(())
+//         },
+//     )?;
+//     Ok(connect_fn)
+// }
+
 fn make_connect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
     let context_weak = deps.manager_ctx.downgrade();
     let node = deps.node.clone();
@@ -240,9 +262,20 @@ fn make_connect<'js>(deps: &ProxyDeps<'js>) -> JsResult<Function<'js>> {
             check_alive_handle(&ctx, &node)?;
             if let Some(context) = context_weak.upgrade() {
                 let id = context.borrow_mut().save_callback(&ctx, callback);
-                let bridge = JsSignalBridge::create(id, context_weak.clone());
-                let callable = Callable::from_object_method(&bridge, "on_signal_fired");
+                let ctx_weak = context_weak.clone();
+                let callable = Callable::from_linked_fn(
+                    "js_signal_handler",
+                    &node,
+                    move |_args: &[&godot::prelude::Variant]| {
+                        if let Some(context) = ctx_weak.upgrade() {
+                            context.borrow_mut().enqueue(id);
+                        }
+
+                        godot::prelude::Variant::nil()
+                    },
+                );
                 let mut node = node.clone();
+                println!("Connect on {signal_name}");
                 node.connect(&StringName::from(&signal_name), &callable);
             }
             Ok(())
