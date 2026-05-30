@@ -129,8 +129,8 @@ fn make_get_trap<'js>(ctx: &Ctx<'js>, node: Gd<Node>) -> rquickjs::Result<Functi
                 return cache;
             }
 
-            if let Some(result) = get_special_property(&ctx, &node, &prop) {
-                return result;
+            if let Some(val) = get_special_property(&ctx, &node, &prop)? {
+                return Ok(val);
             }
 
             let string_name = StringName::from(&prop);
@@ -151,6 +151,10 @@ fn make_get_trap<'js>(ctx: &Ctx<'js>, node: Gd<Node>) -> rquickjs::Result<Functi
     )
 }
 
+fn make_cache_fn_name(prop: &str) -> String {
+    format!("_cache_fn_{prop}")
+}
+
 fn handle_method_call<'js>(
     ctx: &Ctx<'js>,
     target_obj: &Object<'js>,
@@ -158,13 +162,15 @@ fn handle_method_call<'js>(
     prop: &str,
     string_name: StringName,
 ) -> JsResult<Value<'js>> {
-    let cache_fn_name = format!("_cache_fn_{}", prop);
+    let cache_fn_name = make_cache_fn_name(prop);
     let cached_fn: Value<'js> = target_obj.get(&cache_fn_name)?;
     if !cached_fn.is_undefined() && !cached_fn.is_null() {
         return Ok(cached_fn);
     }
 
-    let method_fn = make_godot_method_fn(ctx, node.clone(), string_name)?;
+    let method_fn = get_special_method(ctx, node, prop)?
+        .map(Ok)
+        .unwrap_or_else(|| make_godot_method_fn(ctx, node.clone(), string_name))?;
     target_obj.set(&cache_fn_name, method_fn.clone())?;
     Ok(method_fn.into_value())
 }
@@ -192,35 +198,58 @@ fn make_godot_method_fn<'js>(
     )
 }
 
+fn get_special_method<'js>(
+    ctx: &Ctx<'js>,
+    node: &Gd<Node>,
+    prop: &str,
+) -> rquickjs::Result<Option<Function<'js>>> {
+    Ok(Some(match prop {
+        "is_class" => make_is_class(ctx, node)?,
+        _ => return Ok(None),
+    }))
+}
+
 fn get_special_property<'js>(
     ctx: &Ctx<'js>,
     node: &Gd<Node>,
     prop: &str,
-) -> Option<rquickjs::Result<Value<'js>>> {
-    match prop {
+) -> rquickjs::Result<Option<Value<'js>>> {
+    Ok(Some(match prop {
         "name" => {
             let name_str = node.get_name().to_string();
-            Some(
-                rquickjs::String::from_str(ctx.clone(), name_str.as_str())
-                    .map(|js_s| js_s.into_value())
-                    .or_else(|_| Ok(Value::new_undefined(ctx.clone()))),
-            )
+            rquickjs::String::from_str(ctx.clone(), name_str.as_str())
+                .map(|js_s| js_s.into_value())?
         }
-        "id" => Some(Ok(Value::new_number(
-            ctx.clone(),
-            node.instance_id().to_i64() as f64,
-        ))),
-        "parent" => {
-            if let Some(parent_node) = node.get_parent()
-                && let Ok(parent_proxy) = create_godot_js_proxy(ctx, parent_node)
-            {
-                Some(Ok(parent_proxy))
-            } else {
-                Some(Ok(Value::new_null(ctx.clone())))
+        "class_type" => {
+            let class_name = node.get_class().to_string();
+            let js_str = rquickjs::String::from_str(ctx.clone(), class_name.as_str())?;
+            js_str.into_value()
+        }
+        "id" => Value::new_number(ctx.clone(), node.instance_id().to_i64() as f64),
+        "parent" => match node.get_parent() {
+            Some(parent) => return create_godot_js_proxy(ctx, parent).map(Some),
+            None => Value::new_null(ctx.clone()),
+        },
+        _ => return Ok(None),
+    }))
+}
+
+fn make_is_class<'js>(ctx: &Ctx<'js>, node: &Gd<Node>) -> rquickjs::Result<Function<'js>> {
+    let node = node.clone();
+    let is_class_fn = Function::new(
+        ctx.clone(),
+        move |ctx: Ctx<'js>, class_name: String| -> rquickjs::Result<bool> {
+            if !node.is_instance_valid() {
+                let js_val = "Cannot check class on a deleted Godot Node!".into_js(&ctx)?;
+                return Err(ctx.throw(js_val));
             }
-        }
-        _ => None,
-    }
+
+            let is_inherited = node.is_class(&class_name);
+            Ok(is_inherited)
+        },
+    )?;
+
+    Ok(is_class_fn)
 }
 
 fn make_set_trap<'js>(ctx: &Ctx<'js>, node: Gd<Node>) -> rquickjs::Result<Function<'js>> {
