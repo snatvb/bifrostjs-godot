@@ -1,9 +1,9 @@
 use std::io::Read;
 
 use godot::classes::file_access::ModeFlags;
+use godot::prelude::*;
 use godot::tools::GFile;
-
-use crate::prelude::*;
+use rquickjs::{Ctx, IntoJs, Result};
 
 pub struct JsFile {
     pub source: String,
@@ -31,14 +31,7 @@ pub fn load_js(godot_path: &str) -> Option<JsFile> {
     })
 }
 
-pub fn with_handle_error<T, F: FnOnce(T)>(ctx: &Ctx<'_>, res: Result<T, rquickjs::Error>, f: F) {
-    match res {
-        Ok(r) => f(r),
-        Err(e) => print_error(ctx, &e),
-    }
-}
-
-pub fn print_error(ctx: &Ctx<'_>, err: &rquickjs::Error) {
+fn print_error(ctx: &Ctx<'_>, err: &rquickjs::Error) {
     if let rquickjs::Error::Exception = err {
         let error_value = ctx.catch();
 
@@ -63,20 +56,29 @@ pub fn print_error(ctx: &Ctx<'_>, err: &rquickjs::Error) {
     }
 }
 
-pub fn handle_error<T>(ctx: &Ctx<'_>, res: &Result<T, rquickjs::Error>) {
+pub fn handle_error<T>(ctx: &Ctx<'_>, res: &Result<T>) {
     if let Err(err) = res {
         print_error(ctx, err);
     }
 }
 
-// pub fn execute_js_script(file: &JsFile, ctx: &Ctx<'_>) {
-//     let mut options = EvalOptions::default();
-//     options.filename = Some(file.path.to_string());
-//
-//     let globals = ctx.globals();
-//     let console_obj = rquickjs::Object::new(ctx.clone()).unwrap();
-//     let log_fn = Function::new(ctx.clone(), console_log).unwrap();
-//     console_obj.set("log", log_fn).unwrap();
-//     globals.set("console", console_obj).unwrap();
-//     handle_error(&ctx, &ctx.eval::<(), _>(file.source.as_str()));
-// }
+pub fn with_handle_error<T, F: FnOnce(T)>(ctx: &Ctx<'_>, res: Result<T>, f: F) {
+    match res {
+        Ok(r) => f(r),
+        Err(e) => print_error(ctx, &e),
+    }
+}
+
+pub fn gd_alive_handle(ctx: &Ctx, alive: bool) -> Result<()> {
+    if !alive {
+        return Err(ctx.throw(
+            "Cannot read property: Godot Node instance is already deleted or invalid!"
+                .into_js(ctx)?,
+        ));
+    }
+    Ok(())
+}
+
+pub fn check_alive_handle(ctx: &Ctx, gdnode: &Gd<Node>) -> Result<()> {
+    gd_alive_handle(ctx, gdnode.is_instance_valid())
+}

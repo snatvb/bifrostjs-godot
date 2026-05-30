@@ -1,9 +1,8 @@
-use rquickjs::Class;
+use godot::prelude::*;
+use js_core::vectors::*;
+use rquickjs::{Class, Ctx, Value, prelude::Rest};
 
-use super::super::vectors::*;
-use crate::prelude::*;
-
-pub fn js_to_godot_variant(ctx: &Ctx<'_>, val: Value<'_>) -> Variant {
+pub fn js_to_godot_variant(_ctx: &Ctx<'_>, val: Value<'_>) -> Variant {
     if val.is_string() {
         if let Some(js_str) = val.as_string() {
             if let Ok(rust_str) = js_str.to_string() {
@@ -55,4 +54,12 @@ pub fn godot_variant_to_js<'js>(ctx: &Ctx<'js>, variant: Variant) -> rquickjs::R
         }
         _ => Ok(Value::new_undefined(ctx.clone())),
     }
+}
+
+pub fn js_to_gd_args<'js>(ctx: &Ctx<'js>, args: Rest<Value<'js>>) -> Vec<Variant> {
+    let mut godot_args = Vec::with_capacity(args.0.len());
+    for arg in args.0 {
+        godot_args.push(js_to_godot_variant(ctx, arg));
+    }
+    godot_args
 }

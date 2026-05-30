@@ -1,14 +1,11 @@
-use crate::js_core::godot::converters::{godot_variant_to_js, js_to_godot_variant};
-use crate::js_core::proxy_vec::create_vector2_proxy;
-use crate::js_core::utils::{extract_trace, gd_alive_handle};
-use crate::js_core::vectors::JsVector2;
-use crate::{
-    manager::{self, JsRuntimeManager},
-    prelude::*,
-};
+use crate::{manager::JsRuntimeManager, prelude::*};
+use gdjs::converters::{godot_variant_to_js, js_to_gd_args, js_to_godot_variant};
+use gdjs::proxy_vec::create_vector2_proxy;
+use gdjs::util::{check_alive_handle, gd_alive_handle};
+use js_core::utils::extract_trace;
 
-use rquickjs::Class;
-use rquickjs::{IntoJs, Proxy, class::Trace, methods, proxy::ProxyHandler};
+use rquickjs::prelude::Rest;
+use rquickjs::{IntoJs, Proxy, class::Trace, proxy::ProxyHandler};
 
 #[derive(GodotClass)]
 #[class(base=Node)]
@@ -76,6 +73,7 @@ impl INode for JsNode {
 
 #[derive(rquickjs::JsLifetime)]
 pub struct JsNodeProxy {
+    #[allow(dead_code)]
     pub godot_node: Gd<Node>,
 }
 
@@ -159,26 +157,37 @@ pub fn create_godot_js_proxy<'js>(
             }
 
             if node.has_method(&string_name) {
-                let node_to_call = node.clone();
-
-                let string_name = string_name.clone();
-                if let Ok(call_closure) = Function::new(
-                    ctx.clone(),
-                    move |ctx: Ctx<'js>, args: rquickjs::function::Rest<Value<'js>>| {
-                        let godot_args: Vec<Variant> = args
-                            .0
-                            .into_iter()
-                            .map(|v| js_to_godot_variant(&ctx, v))
-                            .collect();
-
-                        let mut local_node = node_to_call.clone();
-
-                        let res = local_node.call(&string_name, &godot_args);
-                        godot_variant_to_js(&ctx, res)
-                    },
-                ) {
-                    return Ok(call_closure.into_value());
+                let cache_fn_name = format!("_cache_fn_{}", prop);
+                let cached_fn: Value<'js> = target_obj.get(&cache_fn_name)?;
+                if !cached_fn.is_undefined() && !cached_fn.is_null() {
+                    return Ok(cached_fn);
                 }
+
+                let node_for_call = node.clone();
+                let method_name_for_call = string_name.clone();
+
+                let method_fn = Function::new(
+                    ctx.clone(),
+                    move |ctx: Ctx<'js>, args: Rest<Value<'js>>| -> rquickjs::Result<Value<'js>> {
+                        check_alive_handle(&ctx, &node_for_call)?;
+
+                        let result_variant = node_for_call
+                            .clone()
+                            .call(&method_name_for_call, &js_to_gd_args(&ctx, args));
+                        if result_variant.get_type() == VariantType::OBJECT
+                            && let Ok(Ok(obj)) = result_variant
+                                .try_to::<Gd<godot::prelude::Object>>()
+                                .map(|o| o.try_cast::<Node>())
+                        {
+                            return create_godot_js_proxy(&ctx, obj);
+                        }
+                        godot_variant_to_js(&ctx, result_variant)
+                    },
+                )?;
+
+                target_obj.set(&cache_fn_name, method_fn.clone())?;
+
+                return Ok(method_fn.into_value());
             }
 
             let godot_variant = node.get(&string_name);

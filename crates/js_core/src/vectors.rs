@@ -1,7 +1,5 @@
-use crate::prelude::*;
-
-use rquickjs::JsLifetime;
 use rquickjs::class::{Trace, Tracer};
+use rquickjs::JsLifetime;
 
 #[derive(JsLifetime, Copy, Clone, Debug)]
 #[rquickjs::class]

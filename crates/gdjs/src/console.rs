@@ -1,5 +1,6 @@
-use super::utils::*;
-use crate::prelude::*;
+use godot::prelude::*;
+use js_core::utils::*;
+use rquickjs::{Ctx, Function, Object, Value, prelude::Rest};
 
 pub fn log(_ctx: Ctx<'_>, Rest(args): Rest<Value<'_>>) {
     godot_print!("{}", convert_to_string(args.as_slice()));

@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use rquickjs::{Ctx, IntoJs, Result, Value};
 
 pub fn convert_to_string(args: &[Value<'_>]) -> String {
     let mut output = String::new();
@@ -63,14 +63,4 @@ pub fn extract_trace(ctx: &Ctx) -> String {
     ctx.eval("new Error().stack")
         .map(|s: String| s.lines().skip(1).collect::<Vec<_>>().join("\n"))
         .unwrap_or_else(|_| "No stack trace available".to_string())
-}
-
-pub fn gd_alive_handle(ctx: &Ctx, alive: bool) -> JsResult<()> {
-    if !alive {
-        return Err(ctx.throw(
-            "Cannot read property: Godot Node instance is already deleted or invalid!"
-                .into_js(&ctx)?,
-        ));
-    }
-    Ok(())
 }

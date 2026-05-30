@@ -125,6 +125,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58ad9a3d877c77834a2d1d92842ebd56928f61bd52e0fac4f04fc8b3731b0437"
 
 [[package]]
+name = "gdjs"
+version = "0.1.0"
+dependencies = [
+ "godot",
+ "js_core",
+ "rquickjs",
+]
+
+[[package]]
 name = "glam"
 version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -256,6 +265,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
+]
+
+[[package]]
+name = "js_core"
+version = "0.1.0"
+dependencies = [
+ "rquickjs",
 ]
 
 [[package]]
@@ -444,7 +460,9 @@ dependencies = [
 name = "rsjs"
 version = "0.1.0"
 dependencies = [
+ "gdjs",
  "godot",
+ "js_core",
  "rquickjs",
 ]
 

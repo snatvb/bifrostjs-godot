@@ -1,6 +1,7 @@
-use crate::{js_core::utils::gd_alive_handle, prelude::*};
+use godot::prelude::*;
+use rquickjs::{Ctx, Function, Object, Proxy, Result, Value, proxy::ProxyHandler};
 
-use rquickjs::{Proxy, proxy::ProxyHandler};
+use crate::util::gd_alive_handle;
 
 pub fn create_vector2_proxy<'js>(
     ctx: &Ctx<'js>,
@@ -14,7 +15,7 @@ pub fn create_vector2_proxy<'js>(
     let prop_get = prop_name.clone();
     let get = Function::new(
         ctx.clone(),
-        move |ctx: Ctx<'js>, _target: Object<'js>, prop: String| -> JsResult<Value<'js>> {
+        move |ctx: Ctx<'js>, _target: Object<'js>, prop: String| -> Result<Value<'js>> {
             let alive = node_get.is_instance_valid();
             if prop == "is_alive" {
                 return Ok(Value::new_bool(ctx.clone(), alive));

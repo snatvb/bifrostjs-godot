@@ -3,11 +3,7 @@ use std::collections::HashMap;
 use rquickjs::Persistent;
 
 pub use crate::prelude::*;
-use crate::{
-    js_core, js_utility,
-    node::{JsNodeProxy, create_godot_js_proxy},
-};
-
+use crate::node::create_godot_js_proxy;
 pub struct JsNodeBound {
     pub js_object: Persistent<Object<'static>>,
 }
@@ -37,11 +33,11 @@ impl JsRuntimeManager {
         context.with(|ctx| {
             let res = (|| -> rquickjs::Result<()> {
                 let globals = ctx.globals();
-                let console_obj = js_core::console::create(&ctx);
+                let console_obj = gdjs::console::create(&ctx);
                 globals.set("console", console_obj)?;
                 Ok(())
             })();
-            js_utility::handle_error(&ctx, &res);
+            gdjs::util::handle_error(&ctx, &res);
         });
 
         self.runtime = Some(runtime);
@@ -55,7 +51,7 @@ impl JsRuntimeManager {
     pub fn register_js_node(&mut self, mut gd_node: Gd<Node>, script_path: String) {
         let instance_id = gd_node.instance_id();
 
-        let file = match crate::js_utility::load_js(&script_path) {
+        let file = match gdjs::util::load_js(&script_path) {
             Some(f) => f,
             None => return,
         };
@@ -64,7 +60,6 @@ impl JsRuntimeManager {
 
         ctx.with(|ctx| {
             let js_node_obj = create_godot_js_proxy(&ctx, gd_node.clone());
-            // js_node_obj.set("id", instance_id.to_i64()).unwrap();
 
             let res =
                 rquickjs::Module::declare(ctx.clone(), file.path.clone(), file.source.clone())
@@ -81,9 +76,9 @@ impl JsRuntimeManager {
                         Ok(instance)
                     });
 
-            js_utility::with_handle_error(&ctx, res, |instance| {
+            gdjs::util::with_handle_error(&ctx, res, |instance| {
                 if instance.contains_key("onReady").unwrap_or(false) {
-                    js_utility::handle_error::<()>(&ctx, &instance.call_method("onReady", ()));
+                    gdjs::util::handle_error::<()>(&ctx, &instance.call_method("onReady", ()));
                 }
 
                 if instance.contains_key("onProcess").unwrap_or(false) {
@@ -128,7 +123,7 @@ impl INode for JsRuntimeManager {
         for i in self.process_queue.iter() {
             if let Some(bound) = self.bounds.get(i) {
                 self.ctx().with(|ctx| {
-                    js_utility::handle_error::<()>(
+                    gdjs::util::handle_error::<()>(
                         &ctx,
                         &bound
                             .js_object

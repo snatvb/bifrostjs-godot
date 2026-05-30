@@ -1,0 +1,9 @@
+[package]
+name = "gdjs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+godot = "0.5.3"
+rquickjs = { version = "0.11.0", features = ["macro", "bindgen"] }
+js_core = { path = "../js_core" }
