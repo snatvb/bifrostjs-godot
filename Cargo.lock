@@ -18,6 +18,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "bifrost-js"
+version = "0.1.0"
+dependencies = [
+ "gdjs",
+ "godot",
+ "js_core",
+ "rquickjs",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.72.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -454,16 +464,6 @@ checksum = "27344601ef27460e82d6a4e1ecb9e7e99f518122095f3c51296da8e9be2b9d83"
 dependencies = [
  "bindgen",
  "cc",
-]
-
-[[package]]
-name = "rsjs"
-version = "0.1.0"
-dependencies = [
- "gdjs",
- "godot",
- "js_core",
- "rquickjs",
 ]
 
 [[package]]

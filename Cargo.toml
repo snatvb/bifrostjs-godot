@@ -2,7 +2,7 @@
 members = ["crates/js_core", "crates/gdjs"]
 
 [package]
-name = "rsjs"
+name = "bifrost-js"
 version = "0.1.0"
 edition = "2024"
 
