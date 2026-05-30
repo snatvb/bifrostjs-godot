@@ -11,27 +11,28 @@ pub struct JsFile {
 }
 
 pub fn load_ts(path: &str) -> Result<JsFile, String> {
-    let mut file = load_js(path).ok_or("Failed to load file")?;
+    let mut file = load_js(path)?;
     file.source = js_core::typescript::strip_types_fast_default(&file.source)?;
     Ok(file)
 }
 
-pub fn load_js(godot_path: &str) -> Option<JsFile> {
+pub fn load_js(godot_path: &str) -> Result<JsFile, String> {
     let mut file = match GFile::open(godot_path, ModeFlags::READ) {
         Ok(f) => f,
         Err(err) => {
-            godot_error!("Failed to load JS file [{}]: {:?}", godot_path, err);
-            return None;
+            return Err(format!(
+                "Failed to load JS file [{}]: {:?}",
+                godot_path, err
+            ));
         }
     };
 
     let mut js_code = String::new();
     if let Err(err) = file.read_to_string(&mut js_code) {
-        godot_error!("Failed to read file [{}]: {:?}", godot_path, err);
-        return None;
+        return Err(format!("Failed to read file [{}]: {:?}", godot_path, err));
     }
 
-    Some(JsFile {
+    Ok(JsFile {
         source: js_code,
         path: godot_path.to_string(),
     })

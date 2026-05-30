@@ -1,7 +1,7 @@
 use std::path::{Component, Path};
 
 use crate::prelude::*;
-use crate::util::{JsFile, load_js};
+use crate::util::{JsFile, load_js, load_ts};
 use godot::classes::ResourceUid;
 use js::Module;
 use js::loader::{Loader, Resolver};
@@ -72,20 +72,16 @@ impl Loader for JsLoader {
         name: &str,
     ) -> js::Result<Module<'js, js::module::Declared>> {
         println!("Load {name}");
-        let JsFile { path, source } = load_js(name).ok_or_else(|| js::Error::Loading {
-            name: "JsLoader".to_string(),
-            message: Some(format!("Failed to load load {name}")),
-        })?;
-        let source = if path.ends_with(".ts") {
-            js_core::typescript::strip_types_fast_default(&source).map_err(|m| {
-                js::Error::Loading {
-                    name: path.clone(),
-                    message: m.into(),
-                }
-            })?
+        let load = if name.ends_with(".ts") {
+            load_ts
         } else {
-            source
+            load_js
         };
+
+        let JsFile { path, source } = load(name).map_err(|e| js::Error::Loading {
+            name: "JsLoader".to_string(),
+            message: Some(format!("Failed to load load {name}\n{e}")),
+        })?;
         Module::declare(ctx.clone(), path, source)
     }
 }
