@@ -56,6 +56,10 @@ impl JsManagerContext {
         self.signal_queue.is_empty()
     }
 
+    pub fn queue_size(&self) -> usize {
+        self.signal_queue.len()
+    }
+
     pub fn get_meta(&self, id: u64) -> Option<&JsSignalMeta> {
         self.signal_registry.get(&id)
     }
@@ -63,19 +67,6 @@ impl JsManagerContext {
     pub(super) fn pop_signal(&mut self) -> Option<u64> {
         self.signal_queue.pop_front()
     }
-
-    // pub fn process_queue(&mut self, ctx: &Ctx<'_>) {
-    //     while let Some(id) = self.signal_queue.pop_front() {
-    //         if let Some(persistent_func) = self.signal_registry.get(&id)
-    //             && let Ok(func) = persistent_func.callback.clone().restore(ctx)
-    //         {
-    //             let res: rquickjs::Result<()> = func.call(());
-    //             if let Err(e) = res {
-    //                 godot_error!("Error inside JS Signal Callback (ID {}): {:?}", id, e);
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 #[derive(Clone, Default, Debug)]
@@ -109,16 +100,6 @@ impl ManagerCtxRef {
                 None => break,
             }
         }
-        // while let Some(id) = self.0.borrow_mut().pop_signal() {
-        //     if let Some(persistent_func) = self.0.borrow().get_meta(id)
-        //         && let Ok(func) = persistent_func.callback.clone().restore(ctx)
-        //     {
-        //         let res: rquickjs::Result<()> = func.call(());
-        //         if let Err(e) = res {
-        //             godot_error!("Error inside JS Signal Callback (ID {}): {:?}", id, e);
-        //         }
-        //     }
-        // }
     }
 }
 
