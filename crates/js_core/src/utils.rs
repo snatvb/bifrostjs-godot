@@ -1,4 +1,4 @@
-use rquickjs::{Ctx, IntoJs, Result, Value};
+use rquickjs::{Ctx, Value};
 
 pub fn convert_to_string(args: &[Value<'_>]) -> String {
     let mut output = String::new();
