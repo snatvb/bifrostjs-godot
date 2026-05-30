@@ -10,6 +10,12 @@ pub struct JsFile {
     pub path: String,
 }
 
+pub fn load_ts(path: &str) -> Result<JsFile, String> {
+    let mut file = load_js(path).ok_or("Failed to load file")?;
+    file.source = js_core::typescript::strip_types_fast_default(&file.source)?;
+    Ok(file)
+}
+
 pub fn load_js(godot_path: &str) -> Option<JsFile> {
     let mut file = match GFile::open(godot_path, ModeFlags::READ) {
         Ok(f) => f,

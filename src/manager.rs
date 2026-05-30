@@ -73,9 +73,12 @@ impl JsRuntimeManager {
     fn register_node(&mut self, gd_node: Gd<Node>, script_path: String) {
         let instance_id = gd_node.instance_id();
 
-        let file = match gdjs::util::load_js(&script_path) {
-            Some(f) => f,
-            None => return,
+        let file = match gdjs::util::load_ts(&script_path) {
+            Ok(f) => f,
+            Err(m) => {
+                godot_error!("Load ts filed: {m}");
+                return;
+            }
         };
         self.ensure_initialized();
         let ctx = self.ctx().clone();

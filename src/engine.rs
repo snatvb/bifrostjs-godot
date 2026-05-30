@@ -5,7 +5,6 @@ use godot::{
     global::Key,
 };
 use js::class::Trace;
-use rquickjs::IntoJs;
 
 use crate::{node::create_godot_js_proxy, prelude::*, proxy_deps::ProxyDeps};
 

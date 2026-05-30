@@ -1,7 +1,7 @@
 use std::path::{Component, Path};
 
 use crate::prelude::*;
-use crate::util::load_js;
+use crate::util::{JsFile, load_js};
 use godot::classes::ResourceUid;
 use js::Module;
 use js::loader::{Loader, Resolver};
@@ -28,10 +28,10 @@ fn normalize_virtual_path(path: &str) -> (Option<String>, String) {
 }
 
 fn ensure_js_extension(name: &str) -> String {
-    if name.ends_with(".js") {
+    if name.ends_with(".ts") {
         name.to_string()
     } else {
-        format!("{}.js", name)
+        format!("{}.ts", name)
     }
 }
 
@@ -72,10 +72,20 @@ impl Loader for JsLoader {
         name: &str,
     ) -> js::Result<Module<'js, js::module::Declared>> {
         println!("Load {name}");
-        let file = load_js(name).ok_or_else(|| js::Error::Loading {
+        let JsFile { path, source } = load_js(name).ok_or_else(|| js::Error::Loading {
             name: "JsLoader".to_string(),
             message: Some(format!("Failed to load load {name}")),
         })?;
-        Module::declare(ctx.clone(), file.path, file.source)
+        let source = if path.ends_with(".ts") {
+            js_core::typescript::strip_types_fast_default(&source).map_err(|m| {
+                js::Error::Loading {
+                    name: path.clone(),
+                    message: m.into(),
+                }
+            })?
+        } else {
+            source
+        };
+        Module::declare(ctx.clone(), path, source)
     }
 }

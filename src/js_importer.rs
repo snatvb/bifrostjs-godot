@@ -44,6 +44,7 @@ impl IEditorImportPlugin for JsImporter {
     fn get_recognized_extensions(&self) -> PackedStringArray {
         let mut array = PackedStringArray::new();
         array.push("js");
+        array.push("ts");
         array
     }
 
