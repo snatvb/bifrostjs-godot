@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use js_core::js;
+use js_core::js::{self, IntoJs};
 
 use crate::util::gd_alive_handle;
 
@@ -10,7 +10,9 @@ pub fn create_vector2_proxy<'js>(
 ) -> js::Result<js::Value<'js>> {
     let gdnode = match gdobject.try_cast::<Node>() {
         Ok(n) => n,
-        Err(_) => return Ok(js::Value::new_undefined(ctx.clone())),
+        Err(_) => {
+            return Err(ctx.throw("Vector2 proxy: not a Node".into_js(ctx)?));
+        }
     };
     let vec_target = js::Object::new(ctx.clone())?;
     let vec_handler = js::Object::new(ctx.clone())?;
@@ -28,14 +30,16 @@ pub fn create_vector2_proxy<'js>(
             gd_alive_handle(&ctx, alive)?;
 
             let current_val = node_get.get(&prop_get);
-            let res = if let Ok(v2) = current_val.try_to::<Vector2>() {
-                match prop.as_str() {
-                    "x" => v2.x,
-                    "y" => v2.y,
-                    _ => 0.0,
+            let v2 = match current_val.try_to::<Vector2>() {
+                Ok(v) => v,
+                Err(_) => {
+                    return Err(ctx.throw("Vector2 proxy: cannot read Godot Vector2".into_js(&ctx)?));
                 }
-            } else {
-                0.0f32
+            };
+            let res = match prop.as_str() {
+                "x" => v2.x,
+                "y" => v2.y,
+                _ => 0.0,
             };
             Ok(js::Value::new_number(ctx, res as f64))
         },
@@ -47,22 +51,33 @@ pub fn create_vector2_proxy<'js>(
         ctx.clone(),
         move |ctx: js::Ctx<'js>, _target: js::Object<'js>, prop: String, val: f32| -> bool {
             let alive = node_set.is_instance_valid();
-            if let Err(err) = gd_alive_handle(&ctx, alive) {
-                godot_error!("{}", err);
+            if let Err(_) = gd_alive_handle(&ctx, alive) {
                 return false;
             }
             let current_val = node_set.get(&prop_set);
-            if let Ok(mut v2) = current_val.try_to::<Vector2>() {
-                match prop.as_str() {
-                    "x" => v2.x = val,
-                    "y" => v2.y = val,
-                    _ => return false,
+            let Ok(mut v2) = current_val.try_to::<Vector2>() else {
+                let _ = ctx.throw(
+                    js::String::from_str(ctx.clone(), "Vector2 proxy: cannot read Godot Vector2 for mutation")
+                        .unwrap()
+                        .into_value(),
+                );
+                return false;
+            };
+            match prop.as_str() {
+                "x" => v2.x = val,
+                "y" => v2.y = val,
+                _ => {
+                    let _ = ctx.throw(
+                        js::String::from_str(ctx.clone(), format!("Vector2 proxy: unknown property '{}'", prop).as_str())
+                            .unwrap()
+                            .into_value(),
+                    );
+                    return false;
                 }
-                let mut node_set = node_set.clone();
-                node_set.set(&prop_set, &Variant::from(v2));
-                return true;
             }
-            false
+            let mut node_set = node_set.clone();
+            node_set.set(&prop_set, &Variant::from(v2));
+            true
         },
     )?;
 
