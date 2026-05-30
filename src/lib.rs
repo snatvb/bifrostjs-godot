@@ -1,3 +1,4 @@
+mod js_importer;
 mod manager;
 mod manager_context;
 mod node;
