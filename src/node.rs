@@ -33,7 +33,7 @@ impl JsNode {
         }
 
         println!("Register {signal_name}");
-        self.base_mut().add_user_signal(&signal_name);
+        self.to_gd().add_user_signal(&signal_name);
     }
 
     #[func]
@@ -51,8 +51,7 @@ impl JsNode {
         let variant_vec: Vec<Variant> = args.iter_shared().collect();
 
         println!("Emit {signal_name}");
-        self.base_mut()
-            .emit_signal(&signal_string_name, &variant_vec);
+        self.to_gd().emit_signal(&signal_string_name, &variant_vec);
     }
 }
 
@@ -67,6 +66,9 @@ impl INode for JsNode {
     }
 
     fn process(&mut self, _: f64) {
+        if self.script_path.is_empty() {
+            return;
+        }
         let instance_id = self.base().instance_id();
         if let Some(manager) = self.manager.as_mut() {
             manager.bind_mut().enqueue_process(instance_id);
@@ -95,12 +97,16 @@ impl INode for JsNode {
 
         if let Some(mut manager) = found_manager {
             self.manager = Some(manager.clone());
-            println!("Register!");
-            manager
-                .bind_mut()
-                .register_js_node(self.base().to_godot().clone(), self.script_path.to_string());
+            manager.call_deferred(
+                "register_js_node",
+                &[
+                    self.base().to_godot().to_variant(),
+                    self.script_path.to_variant(),
+                ],
+            );
         }
     }
+
     fn exit_tree(&mut self) {
         let id = self.base().instance_id();
         if let Some(manager) = self.manager.as_mut() {
@@ -131,6 +137,9 @@ pub fn create_godot_js_proxy<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Value
         godot_node: deps.node.clone(),
     };
     let target_js = target.into_js(&deps.ctx)?;
+    let obj = target_js.as_object().unwrap();
+    obj.set("gd_instance_id", deps.node.instance_id().to_i64() as f64)?;
+    let _ = obj;
 
     let handler = js::Object::new(deps.ctx.clone())?;
     handler.set("get", make_get_trap(deps)?)?;
@@ -411,6 +420,9 @@ fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
               prop: String,
               value: js::Value<'js>|
               -> bool {
+            if prop == "gd_instance_id" {
+                return false;
+            }
             let alive = node.is_instance_valid();
             if let Err(err) = gd_alive_handle(&ctx, alive) {
                 godot_error!("{}", err);

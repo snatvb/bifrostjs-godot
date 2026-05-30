@@ -20,7 +20,7 @@ pub struct JsRuntimeManager {
     js_context: Option<js::Context>,
     bounds: HashMap<InstanceId, JsNodeBound>,
     process_queue: Vec<InstanceId>,
-    register_queue: Vec<Gd<Node>>,
+    ready_queue: Vec<Gd<Node>>,
     context: ManagerCtxRef,
 
     #[export]
@@ -65,7 +65,12 @@ impl JsRuntimeManager {
         self.js_context.as_ref().expect("Context must be inited")
     }
 
-    pub fn register_js_node(&mut self, gd_node: Gd<Node>, script_path: String) {
+    #[func]
+    fn register_js_node(&mut self, node: Gd<Node>, path: GString) {
+        self.register_node(node, path.to_string());
+    }
+
+    fn register_node(&mut self, gd_node: Gd<Node>, script_path: String) {
         let instance_id = gd_node.instance_id();
 
         let file = match gdjs::util::load_js(&script_path) {
@@ -118,7 +123,7 @@ impl JsRuntimeManager {
 
             println!("Register queued done");
         });
-        self.register_queue.push(gd_node);
+        self.ready_queue.push(gd_node);
     }
 
     pub fn unregister_js_node(&mut self, id: InstanceId) {
@@ -129,12 +134,12 @@ impl JsRuntimeManager {
         self.process_queue.push(id);
     }
 
-    fn process_registrations(&mut self, ctx: &js::Ctx<'_>) {
-        if self.register_queue.is_empty() {
+    fn process_ready(&mut self, ctx: &js::Ctx<'_>) {
+        if self.ready_queue.is_empty() {
             return;
         }
 
-        while let Some(mut node) = self.register_queue.pop().filter(|n| n.is_instance_valid())
+        while let Some(mut node) = self.ready_queue.pop().filter(|n| n.is_instance_valid())
             && let Some(bound) = self.bounds.get(&node.instance_id())
         {
             let Ok(instance) = &bound.js_object.clone().restore(ctx) else {
@@ -218,7 +223,7 @@ impl INode for JsRuntimeManager {
             js_context: None,
             bounds: Default::default(),
             context: Default::default(),
-            register_queue: Default::default(),
+            ready_queue: Default::default(),
             process_queue: Vec::with_capacity(100),
             debug_enabled: false,
             start_time: Instant::now(),
@@ -249,7 +254,7 @@ impl INode for JsRuntimeManager {
     fn process(&mut self, dt: f64) {
         let ctx = self.ctx().clone();
         ctx.with(|ctx| {
-            self.process_registrations(&ctx);
+            self.process_ready(&ctx);
             for i in self.process_queue.iter() {
                 if let Some(bound) = self.bounds.get(i) {
                     gdjs::util::handle_error::<()>(
@@ -275,6 +280,6 @@ impl INode for JsRuntimeManager {
         self.context.borrow_mut().clear();
         self.bounds.clear();
         self.process_queue.clear();
-        self.register_queue.clear();
+        self.ready_queue.clear();
     }
 }

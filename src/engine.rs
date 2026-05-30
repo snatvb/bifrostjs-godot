@@ -1,10 +1,11 @@
 use std::fmt::Debug;
 
 use godot::{
-    classes::{ClassDb, Input},
+    classes::{ClassDb, Input, ResourceLoader, resource_loader::CacheMode},
     global::Key,
 };
 use js::class::Trace;
+use rquickjs::IntoJs;
 
 use crate::{node::create_godot_js_proxy, prelude::*, proxy_deps::ProxyDeps};
 
@@ -43,6 +44,33 @@ impl GodotJsEngine {
             return create_godot_js_proxy(&deps);
         }
         Ok(js::Undefined.into_value(ctx))
+    }
+    #[qjs(rename = "instantiate")]
+    fn instantiate<'js>(&self, ctx: js::Ctx<'js>, path: String) -> js::Result<js::Value<'js>> {
+        let mut loader = ResourceLoader::singleton();
+        let resource: Gd<Resource> = loader
+            .load_ex(&GString::from(&path))
+            .type_hint("PackedScene")
+            .cache_mode(CacheMode::REUSE)
+            .done()
+            .ok_or_else(|| js::Error::Loading {
+                name: "LoaderLoad".to_string(),
+                message: format!("Failed to load scene: {path}").into(),
+            })?;
+        let packed: Gd<PackedScene> = resource.try_cast().map_err(|_| js::Error::Loading {
+            name: "LoaderLoad".to_string(),
+            message: format!("Resource is not a PackedScene: {path}").into(),
+        })?;
+        let node: Gd<Node> = packed.instantiate().ok_or_else(|| js::Error::Loading {
+            name: "LoaderLoad".to_string(),
+            message: format!("Failed to instantiate scene: {path}").into(),
+        })?;
+        let deps = ProxyDeps {
+            node: node.upcast(),
+            ctx: ctx.clone(),
+            manager_ctx: self.ctx.clone(),
+        };
+        create_godot_js_proxy(&deps)
     }
 }
 

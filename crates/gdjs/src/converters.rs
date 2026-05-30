@@ -36,6 +36,18 @@ pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
             Ok(Variant::from(gd_array))
         }
 
+        js::Type::Proxy => {
+            let obj = val.as_object().unwrap();
+            if let Ok(id_val) = obj.get::<_, f64>("gd_instance_id") {
+                let id = InstanceId::from_i64(id_val as i64);
+                if let Ok(gd_obj) = Gd::<Object>::try_from_instance_id(id) {
+                    return Ok(Variant::from(gd_obj));
+                }
+            }
+            godot_warn!("Bifrost Marshalling: Unsupported JS regular proxy");
+            Ok(Variant::nil())
+        }
+
         js::Type::Object => {
             let obj = val.as_object().unwrap();
             if let Some(v2_class) = js::class::Class::<JsVector2>::from_object(obj) {
