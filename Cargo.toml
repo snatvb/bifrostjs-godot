@@ -8,7 +8,7 @@ edition = "2024"
 
 [dependencies]
 godot = { version = "0.5.3", features = ["experimental-threads"] }
-rquickjs = { version = "0.11.0", features = ["macro", "bindgen"] }
+rquickjs = { version = "0.11.0", features = ["macro", "bindgen", "loader"] }
 js_core = { path = "crates/js_core" }
 gdjs = { path = "crates/gdjs" }
 

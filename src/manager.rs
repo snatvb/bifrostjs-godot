@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
+use rquickjs::loader::ModuleLoader;
 
 use crate::bifrost_js_module::BifrostModule;
 use crate::node::create_godot_js_proxy;
@@ -40,6 +41,8 @@ impl JsRuntimeManager {
         godot_print!("--- JS Engine initialization.. ---");
 
         let runtime = js::Runtime::new().expect("JS Runtime create failure");
+        runtime.set_loader(gdjs::modules::JsResolver, gdjs::modules::JsLoader);
+
         let context = js::Context::full(&runtime).expect("JS Context failure");
 
         context.with(|ctx| {
