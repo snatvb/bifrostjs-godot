@@ -8,8 +8,8 @@ use gdjs::proxy_transform::create_transform2d_proxy;
 use gdjs::proxy_transform3::create_transform3d_proxy;
 use gdjs::proxy_vec::create_vector2_proxy;
 use gdjs::proxy_vec3::create_vector3_proxy;
-use gdjs::util::{check_alive_handle, gd_alive_handle};
 use gdjs::util::{cache_fn_key, cache_key, get_cached, with_cache};
+use gdjs::util::{check_alive_handle, gd_alive_handle};
 use js_core::utils::extract_trace;
 
 use js_core::js::IntoJs;
@@ -167,12 +167,6 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
               target_obj: js::Object<'js>,
               prop: String|
               -> js::Result<js::Value<'js>> {
-            let deps = ProxyDeps {
-                ctx: ctx.clone(),
-                node: node.clone(),
-                manager_ctx: man_ctx.clone(),
-            };
-
             if let Some(val) = get_cached(&target_obj, &prop)? {
                 return Ok(val);
             }
@@ -183,6 +177,12 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
             }
 
             gd_alive_handle(&ctx, alive)?;
+
+            let deps = ProxyDeps {
+                ctx: ctx.clone(),
+                node: node.clone(),
+                manager_ctx: man_ctx.clone(),
+            };
 
             let cache_prop_name = cache_key(&prop);
 

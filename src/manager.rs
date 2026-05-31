@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
+use gdjs::util::handle_error;
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
 use js_core::timers::JsTimers;
@@ -42,6 +43,7 @@ pub struct JsRuntimeManager {
     bounds: HashMap<InstanceId, JsNodeBound>,
     process_queue: Vec<InstanceId>,
     ready_queue: Vec<Gd<Node>>,
+    free_queue: Vec<JsNodeBound>,
     context: ManagerCtxRef,
     deadline: Rc<Cell<Option<Instant>>>,
     timers: JsTimers,
@@ -155,7 +157,24 @@ impl JsRuntimeManager {
     }
 
     pub fn unregister_js_node(&mut self, id: InstanceId) {
-        self.bounds.remove(&id);
+        let Some(bound) = self.bounds.remove(&id) else {
+            return;
+        };
+        self.free_queue.push(bound);
+    }
+
+    fn process_free(&mut self, ctx: &js::Ctx<'_>) {
+        while let Some(bound) = self.free_queue.pop() {
+            let instance = &bound.js_object.clone().restore(ctx);
+            handle_error(ctx, instance);
+            let Ok(instance) = instance else {
+                return;
+            };
+
+            if instance.contains_key("onDestroy").unwrap_or(false) {
+                gdjs::util::handle_error::<()>(ctx, &instance.call_method("onDestroy", ()));
+            }
+        }
     }
 
     pub fn enqueue_process(&mut self, id: InstanceId) {
@@ -266,6 +285,7 @@ impl INode for JsRuntimeManager {
             bounds: Default::default(),
             context: Default::default(),
             ready_queue: Default::default(),
+            free_queue: Default::default(),
             process_queue: Vec::with_capacity(100),
             debug_enabled: false,
             start_time: Instant::now(),
@@ -298,6 +318,7 @@ impl INode for JsRuntimeManager {
 
         let _guard = DeadlineGuard::new(self.deadline.clone(), self.execution_limit as u64);
         ctx.with(|ctx| {
+            self.process_free(&ctx);
             self.process_ready(&ctx);
             for i in self.process_queue.iter() {
                 if let Some(bound) = self.bounds.get(i) {
@@ -323,21 +344,11 @@ impl INode for JsRuntimeManager {
 
     fn exit_tree(&mut self) {
         let mut timers = self.timers.borrow_mut();
-        println!("counts: {}/{}", timers.released.len(), timers.timers.len());
         timers.clear();
         drop(timers);
-        // if let Some(ctx) = &self.js_context {
-        //     ctx.with(|ctx| {
-        //         let g = ctx.globals();
-        //         let u = js::Value::new_undefined(ctx);
-        //         let _ = g.set("setTimeout", u.clone());
-        //         let _ = g.set("setInterval", u.clone());
-        //         let _ = g.set("clearTimeout", u.clone());
-        //         let _ = g.set("clearInterval", u);
-        //     });
-        // }
         self.process_queue.clear();
         self.ready_queue.clear();
+        self.free_queue.clear();
         self.bounds.clear();
         self.context.borrow_mut().clear();
     }

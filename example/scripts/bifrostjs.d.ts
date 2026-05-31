@@ -5,6 +5,10 @@ declare module "bifrostjs" {
   export default engine
 }
 
+declare function setInterval(cb: () => void, delay: number): number
+declare function setTimeout(cb: () => void, delay: number): number
+declare function clearTimerout(id: number): void
+declare function clearInterval(id: number): void
 // Globals
 
 declare var console: {
