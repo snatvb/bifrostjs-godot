@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use godot::classes::control::LayoutPreset;
 use godot::classes::{CanvasLayer, Label};
+use js_core::timers::JsTimers;
 
 use crate::bifrost_js_module::BifrostModule;
 use crate::node::create_godot_js_proxy;
@@ -43,6 +44,7 @@ pub struct JsRuntimeManager {
     ready_queue: Vec<Gd<Node>>,
     context: ManagerCtxRef,
     deadline: Rc<Cell<Option<Instant>>>,
+    timers: JsTimers,
 
     #[export]
     execution_limit: u32, // in ms where 0 is unlimited
@@ -77,11 +79,12 @@ impl JsRuntimeManager {
         let context = js::Context::full(&runtime).expect("JS Context failure");
 
         let manager_ctx = self.context.clone();
+        let timers = self.timers.clone();
         context.with(move |ctx| {
             let res = (|| -> js::Result<()> {
                 let globals = ctx.globals();
-                let console_obj = gdjs::console::create(&ctx);
-                globals.set("console", console_obj)?;
+                globals.set("console", gdjs::console::create(&ctx))?;
+                timers.bind_to(&ctx, &globals)?;
                 ctx.store_userdata(manager_ctx)?;
                 js::Module::declare_def::<BifrostModule, _>(ctx.clone(), "bifrostjs")?;
                 Ok(())
@@ -237,6 +240,17 @@ impl JsRuntimeManager {
             label.set_text(&lines);
         }
     }
+
+    fn process_timers(&self, ctx: &js::Ctx<'_>, dt: f64) -> js::Result<()> {
+        let mut timers = self.timers.borrow_mut();
+        timers.tick(Duration::from_secs_f64(dt));
+        if let Some(timer) = timers.pop_one() {
+            drop(timers);
+            let cb = timer.cb.restore(ctx)?;
+            let _: () = cb.call(())?;
+        }
+        Ok(())
+    }
 }
 
 #[godot_api]
@@ -244,6 +258,7 @@ impl INode for JsRuntimeManager {
     fn init(base: Base<Node>) -> Self {
         Self {
             base,
+            timers: JsTimers::new(),
             deadline: Default::default(),
             execution_limit: Default::default(),
             js_runtime: None,
@@ -298,6 +313,7 @@ impl INode for JsRuntimeManager {
                 }
             }
             self.process_signals(&ctx);
+            gdjs::util::handle_error(&ctx, &self.process_timers(&ctx, dt));
             ctx.run_gc();
         });
         self.process_queue.clear();
@@ -306,9 +322,23 @@ impl INode for JsRuntimeManager {
     }
 
     fn exit_tree(&mut self) {
-        self.context.borrow_mut().clear();
-        self.bounds.clear();
+        let mut timers = self.timers.borrow_mut();
+        println!("counts: {}/{}", timers.released.len(), timers.timers.len());
+        timers.clear();
+        drop(timers);
+        // if let Some(ctx) = &self.js_context {
+        //     ctx.with(|ctx| {
+        //         let g = ctx.globals();
+        //         let u = js::Value::new_undefined(ctx);
+        //         let _ = g.set("setTimeout", u.clone());
+        //         let _ = g.set("setInterval", u.clone());
+        //         let _ = g.set("clearTimeout", u.clone());
+        //         let _ = g.set("clearInterval", u);
+        //     });
+        // }
         self.process_queue.clear();
         self.ready_queue.clear();
+        self.bounds.clear();
+        self.context.borrow_mut().clear();
     }
 }

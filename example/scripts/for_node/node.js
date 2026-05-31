@@ -17,18 +17,11 @@ export default class {
     let counter = 0
     const id = button.connect("button_down", function buttonDown(...args) {
       console.log("down");
+      setTimeout(() => console.log("TIMEOUT"), 1000)
       counter++;
-      if (counter > 5) {
+      if (counter > 15) {
         console.log("disconnected", id, ...args);
         button.disconnect(id);
-      }
-    })
-    button.connect("pressed", () => {
-      console.log("pressed")
-
-      counter++
-      if (counter > 5) {
-
       }
     })
   }
