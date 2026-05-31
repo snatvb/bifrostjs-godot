@@ -96,12 +96,8 @@ pub fn with_cache<'js, F>(
 where
     F: FnOnce() -> js::Result<js::Value<'js>>,
 {
-    if target.contains_key(key).unwrap_or(false) {
-        if let Ok(cached) = target.get::<_, js::Value>(key) {
-            if !cached.is_undefined() {
-                return Ok(cached);
-            }
-        }
+    if let Some(cached) = peek_cache(target, key)? {
+        return Ok(cached);
     }
     let val = factory()?;
     target.set(key, val.clone())?;
@@ -114,6 +110,16 @@ pub fn get_cached<'js>(target: &js::Object<'js>, key: &str) -> js::Result<Option
     } else {
         Ok(None)
     }
+}
+
+pub fn peek_cache<'js>(target: &js::Object<'js>, key: &str) -> js::Result<Option<js::Value<'js>>> {
+    if target.contains_key(key).unwrap_or(false)
+        && let Ok(cached) = target.get::<_, js::Value>(key)
+        && !cached.is_undefined()
+    {
+        return Ok(Some(cached));
+    }
+    Ok(None)
 }
 
 pub fn gd_alive_handle(ctx: &js::Ctx, alive: bool) -> js::Result<()> {

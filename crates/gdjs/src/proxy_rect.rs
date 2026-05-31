@@ -21,7 +21,10 @@ pub fn create_rect2_proxy<'js>(
     let prop_get = prop_name.clone();
     let get = js::Function::new(
         ctx.clone(),
-        move |ctx: js::Ctx<'js>, _target: js::Object<'js>, prop: String| -> js::Result<js::Value<'js>> {
+        move |ctx: js::Ctx<'js>,
+              _target: js::Object<'js>,
+              prop: String|
+              -> js::Result<js::Value<'js>> {
             let alive = node_get.is_instance_valid();
             if prop == "is_alive" {
                 return Ok(js::Value::new_bool(ctx.clone(), alive));
@@ -53,15 +56,18 @@ pub fn create_rect2_proxy<'js>(
         ctx.clone(),
         move |ctx: js::Ctx<'js>, _target: js::Object<'js>, prop: String, val: f32| -> bool {
             let alive = node_set.is_instance_valid();
-            if let Err(_) = gd_alive_handle(&ctx, alive) {
+            if gd_alive_handle(&ctx, alive).is_err() {
                 return false;
             }
             let current_val = node_set.get(&prop_set);
             let Ok(mut r2) = current_val.try_to::<Rect2>() else {
                 let _ = ctx.throw(
-                    js::String::from_str(ctx.clone(), "Rect2 proxy: cannot read Godot Rect2 for mutation")
-                        .unwrap()
-                        .into_value(),
+                    js::String::from_str(
+                        ctx.clone(),
+                        "Rect2 proxy: cannot read Godot Rect2 for mutation",
+                    )
+                    .unwrap()
+                    .into_value(),
                 );
                 return false;
             };
@@ -72,9 +78,12 @@ pub fn create_rect2_proxy<'js>(
                 "height" => r2.size.y = val,
                 _ => {
                     let _ = ctx.throw(
-                        js::String::from_str(ctx.clone(), format!("Rect2 proxy: unknown property '{}'", prop).as_str())
-                            .unwrap()
-                            .into_value(),
+                        js::String::from_str(
+                            ctx.clone(),
+                            format!("Rect2 proxy: unknown property '{}'", prop).as_str(),
+                        )
+                        .unwrap()
+                        .into_value(),
                     );
                     return false;
                 }

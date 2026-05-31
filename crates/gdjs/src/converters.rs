@@ -2,6 +2,8 @@ use crate::colors::*;
 use crate::prelude::*;
 use crate::rect2::*;
 use crate::transform2d::*;
+use crate::transform3d::*;
+use crate::vector3::*;
 use js_core::vectors::*;
 
 pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
@@ -61,22 +63,43 @@ pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
             }
             if let Some(c_class) = js::class::Class::<JsColor>::from_object(obj) {
                 let c = c_class.borrow();
-                return Ok(Variant::from(godot::builtin::Color::from_rgba(c.r, c.g, c.b, c.a)));
+                return Ok(Variant::from(godot::builtin::Color::from_rgba(
+                    c.r, c.g, c.b, c.a,
+                )));
             }
             if let Some(r_class) = js::class::Class::<JsRect2>::from_object(obj) {
                 let internal = r_class.borrow();
                 return Ok(Variant::from(godot::builtin::Rect2::new(
-                    godot::prelude::Vector2::new(internal.position_x, internal.position_y),
-                    godot::prelude::Vector2::new(internal.size_x, internal.size_y),
+                    Vector2::new(internal.position_x, internal.position_y),
+                    Vector2::new(internal.size_x, internal.size_y),
                 )));
             }
             if let Some(t_class) = js::class::Class::<JsTransform2D>::from_object(obj) {
                 let internal = t_class.borrow();
                 return Ok(Variant::from(godot::builtin::Transform2D::from_cols(
-                    godot::prelude::Vector2::new(internal.xx, internal.xy),
-                    godot::prelude::Vector2::new(internal.yx, internal.yy),
-                    godot::prelude::Vector2::new(internal.ox, internal.oy),
+                    Vector2::new(internal.xx, internal.xy),
+                    Vector2::new(internal.yx, internal.yy),
+                    Vector2::new(internal.ox, internal.oy),
                 )));
+            }
+            if let Some(v3_class) = js::class::Class::<JsVector3>::from_object(obj) {
+                let internal = v3_class.borrow();
+                return Ok(Variant::from(godot::prelude::Vector3::new(
+                    internal.x, internal.y, internal.z,
+                )));
+            }
+            if let Some(t3_class) = js::class::Class::<JsTransform3D>::from_object(obj) {
+                let internal = t3_class.borrow();
+                return Ok(Variant::from(godot::prelude::Transform3D {
+                    basis: Basis {
+                        rows: [
+                            Vector3::new(internal.xx, internal.xy, internal.xz),
+                            Vector3::new(internal.yx, internal.yy, internal.yz),
+                            Vector3::new(internal.zx, internal.zy, internal.zz),
+                        ],
+                    },
+                    origin: Vector3::new(internal.ox, internal.oy, internal.oz),
+                }));
             }
             let mut gd_dict = Dictionary::<Variant, Variant>::new();
             let keys: Vec<String> = obj.keys().collect::<js::Result<Vec<_>>>()?;
@@ -143,7 +166,9 @@ where
         }
 
         VariantType::COLOR => {
-            let c = variant.try_to::<Color>().unwrap_or(Color::from_rgba(0.0, 0.0, 0.0, 1.0));
+            let c = variant
+                .try_to::<Color>()
+                .unwrap_or(Color::from_rgba(0.0, 0.0, 0.0, 1.0));
             let js_color = JsColor {
                 r: c.r,
                 g: c.g,
@@ -177,6 +202,37 @@ where
                 oy: t.origin.y,
             };
             let class_instance = js::Class::instance(ctx.clone(), js_t2d)?;
+            Ok(class_instance.into_value())
+        }
+
+        VariantType::VECTOR3 => {
+            let v3 = variant.try_to::<Vector3>().unwrap_or(Vector3::ZERO);
+            let js_v3 = JsVector3 {
+                x: v3.x,
+                y: v3.y,
+                z: v3.z,
+            };
+            let class_instance = js::Class::instance(ctx.clone(), js_v3)?;
+            Ok(class_instance.into_value())
+        }
+
+        VariantType::TRANSFORM3D => {
+            let t = variant.try_to::<Transform3D>().unwrap_or_default();
+            let js_t3d = JsTransform3D {
+                xx: t.basis.rows[0].x,
+                xy: t.basis.rows[0].y,
+                xz: t.basis.rows[0].z,
+                yx: t.basis.rows[1].x,
+                yy: t.basis.rows[1].y,
+                yz: t.basis.rows[1].z,
+                zx: t.basis.rows[2].x,
+                zy: t.basis.rows[2].y,
+                zz: t.basis.rows[2].z,
+                ox: t.origin.x,
+                oy: t.origin.y,
+                oz: t.origin.z,
+            };
+            let class_instance = js::Class::instance(ctx.clone(), js_t3d)?;
             Ok(class_instance.into_value())
         }
 

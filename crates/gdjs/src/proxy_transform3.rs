@@ -3,7 +3,7 @@ use js_core::js::{self, IntoJs};
 
 use crate::util::{col_cache_key, gd_alive_handle, peek_cache, with_cache};
 
-pub fn create_transform2d_proxy<'js>(
+pub fn create_transform3d_proxy<'js>(
     ctx: &js::Ctx<'js>,
     gdobject: Gd<godot::prelude::Object>,
     prop_name: StringName,
@@ -11,11 +11,11 @@ pub fn create_transform2d_proxy<'js>(
     let gdnode = match gdobject.try_cast::<Node>() {
         Ok(n) => n,
         Err(_) => {
-            return Err(ctx.throw("Transform2D proxy: not a Node".into_js(ctx)?));
+            return Err(ctx.throw("Transform3D proxy: not a Node".into_js(ctx)?));
         }
     };
-    let t2d_target = js::Object::new(ctx.clone())?;
-    let t2d_handler = js::Object::new(ctx.clone())?;
+    let t3d_target = js::Object::new(ctx.clone())?;
+    let t3d_handler = js::Object::new(ctx.clone())?;
 
     let node_get = gdnode.clone();
     let prop_get = prop_name.clone();
@@ -37,18 +37,19 @@ pub fn create_transform2d_proxy<'js>(
             }
 
             let current_val = node_get.get(&prop_get);
-            let _t2d = match current_val.try_to::<Transform2D>() {
+            let _t3d = match current_val.try_to::<Transform3D>() {
                 Ok(v) => v,
                 Err(_) => {
                     return Err(ctx
-                        .throw("Transform2D proxy: cannot read Godot Transform2D".into_js(&ctx)?));
+                        .throw("Transform3D proxy: cannot read Godot Transform3D".into_js(&ctx)?));
                 }
             };
 
             let col_idx = match prop.as_str() {
                 "x" => Some(0u8),
                 "y" => Some(1u8),
-                "origin" => Some(2u8),
+                "z" => Some(2u8),
+                "origin" => Some(3u8),
                 _ => None,
             };
 
@@ -75,11 +76,11 @@ pub fn create_transform2d_proxy<'js>(
                 return false;
             }
             let current_val = node_set.get(&prop_set);
-            let Ok(mut t2d) = current_val.try_to::<Transform2D>() else {
+            let Ok(mut t3d) = current_val.try_to::<Transform3D>() else {
                 let _ = ctx.throw(
                     js::String::from_str(
                         ctx.clone(),
-                        "Transform2D proxy: cannot read Godot Transform2D for mutation",
+                        "Transform3D proxy: cannot read Godot Transform3D for mutation",
                     )
                     .unwrap()
                     .into_value(),
@@ -93,14 +94,15 @@ pub fn create_transform2d_proxy<'js>(
             };
 
             match prop.as_str() {
-                "x" => t2d.a = col,
-                "y" => t2d.b = col,
-                "origin" => t2d.origin = col,
+                "x" => t3d.basis.set_col_a(col),
+                "y" => t3d.basis.set_col_b(col),
+                "z" => t3d.basis.set_col_c(col),
+                "origin" => t3d.origin = col,
                 _ => {
                     let _ = ctx.throw(
                         js::String::from_str(
                             ctx.clone(),
-                            format!("Transform2D proxy: unknown property '{}'", prop).as_str(),
+                            format!("Transform3D proxy: unknown property '{}'", prop).as_str(),
                         )
                         .unwrap()
                         .into_value(),
@@ -109,18 +111,18 @@ pub fn create_transform2d_proxy<'js>(
                 }
             }
             let mut node_set = node_set.clone();
-            node_set.set(&prop_set, &Variant::from(t2d));
+            node_set.set(&prop_set, &Variant::from(t3d));
             true
         },
     )?;
 
-    t2d_handler.set("get", get)?;
-    t2d_handler.set("set", set)?;
+    t3d_handler.set("get", get)?;
+    t3d_handler.set("set", set)?;
 
     let proxy = js::Proxy::new(
         ctx.clone(),
-        t2d_target,
-        js::proxy::ProxyHandler::from_object(t2d_handler)?,
+        t3d_target,
+        js::proxy::ProxyHandler::from_object(t3d_handler)?,
     )?;
     Ok(proxy.into_value())
 }
@@ -149,23 +151,25 @@ fn make_col_proxy<'js>(
             gd_alive_handle(&ctx, alive)?;
 
             let current_val = node_get.get(&prop_get);
-            let t2d = match current_val.try_to::<Transform2D>() {
+            let t3d = match current_val.try_to::<Transform3D>() {
                 Ok(v) => v,
                 Err(_) => {
                     return Err(ctx.throw(
-                        "Transform2D column proxy: cannot read Transform2D".into_js(&ctx)?,
+                        "Transform3D column proxy: cannot read Transform3D".into_js(&ctx)?,
                     ));
                 }
             };
 
             let col = match col_idx {
-                0 => t2d.a,
-                1 => t2d.b,
-                _ => t2d.origin,
+                0 => t3d.basis.col_a(),
+                1 => t3d.basis.col_b(),
+                2 => t3d.basis.col_c(),
+                _ => t3d.origin,
             };
             let res = match field.as_str() {
                 "x" => col.x,
                 "y" => col.y,
+                "z" => col.z,
                 _ => 0.0,
             };
             Ok(js::Value::new_number(ctx, res as f64))
@@ -178,15 +182,15 @@ fn make_col_proxy<'js>(
         ctx.clone(),
         move |ctx: js::Ctx<'js>, _target: js::Object<'js>, field: String, val: f32| -> bool {
             let alive = node_set.is_instance_valid();
-            if gd_alive_handle(&ctx, alive).is_err() {
+            if gd_alive_handle(&ctx, alive).is_ok() {
                 return false;
             }
             let current_val = node_set.get(&prop_set);
-            let Ok(mut t2d) = current_val.try_to::<Transform2D>() else {
+            let Ok(mut t3d) = current_val.try_to::<Transform3D>() else {
                 let _ = ctx.throw(
                     js::String::from_str(
                         ctx.clone(),
-                        "Transform2D column proxy: cannot read for mutation",
+                        "Transform3D column proxy: cannot read for mutation",
                     )
                     .unwrap()
                     .into_value(),
@@ -194,28 +198,78 @@ fn make_col_proxy<'js>(
                 return false;
             };
 
-            let col = match col_idx {
-                0 => &mut t2d.a,
-                1 => &mut t2d.b,
-                _ => &mut t2d.origin,
-            };
-            match field.as_str() {
-                "x" => col.x = val,
-                "y" => col.y = val,
-                _ => {
-                    let _ = ctx.throw(
-                        js::String::from_str(
-                            ctx.clone(),
-                            format!("Transform2D column proxy: unknown field '{}'", field).as_str(),
-                        )
-                        .unwrap()
-                        .into_value(),
-                    );
-                    return false;
-                }
+            match col_idx {
+                0 => match field.as_str() {
+                    "x" => t3d.basis.rows[0].x = val,
+                    "y" => t3d.basis.rows[1].x = val,
+                    "z" => t3d.basis.rows[2].x = val,
+                    _ => {
+                        let _ = ctx.throw(
+                            js::String::from_str(
+                                ctx.clone(),
+                                format!("Transform3D column proxy: unknown field '{}'", field)
+                                    .as_str(),
+                            )
+                            .unwrap()
+                            .into_value(),
+                        );
+                        return false;
+                    }
+                },
+                1 => match field.as_str() {
+                    "x" => t3d.basis.rows[0].y = val,
+                    "y" => t3d.basis.rows[1].y = val,
+                    "z" => t3d.basis.rows[2].y = val,
+                    _ => {
+                        let _ = ctx.throw(
+                            js::String::from_str(
+                                ctx.clone(),
+                                format!("Transform3D column proxy: unknown field '{}'", field)
+                                    .as_str(),
+                            )
+                            .unwrap()
+                            .into_value(),
+                        );
+                        return false;
+                    }
+                },
+                2 => match field.as_str() {
+                    "x" => t3d.basis.rows[0].z = val,
+                    "y" => t3d.basis.rows[1].z = val,
+                    "z" => t3d.basis.rows[2].z = val,
+                    _ => {
+                        let _ = ctx.throw(
+                            js::String::from_str(
+                                ctx.clone(),
+                                format!("Transform3D column proxy: unknown field '{}'", field)
+                                    .as_str(),
+                            )
+                            .unwrap()
+                            .into_value(),
+                        );
+                        return false;
+                    }
+                },
+                _ => match field.as_str() {
+                    "x" => t3d.origin.x = val,
+                    "y" => t3d.origin.y = val,
+                    "z" => t3d.origin.z = val,
+                    _ => {
+                        let _ = ctx.throw(
+                            js::String::from_str(
+                                ctx.clone(),
+                                format!("Transform3D column proxy: unknown field '{}'", field)
+                                    .as_str(),
+                            )
+                            .unwrap()
+                            .into_value(),
+                        );
+                        return false;
+                    }
+                },
             }
             let mut node_set = node_set.clone();
-            node_set.set(&prop_set, &Variant::from(t2d));
+            node_set.set(&prop_set, &Variant::from(t3d));
             true
         },
     )?;
@@ -231,9 +285,10 @@ fn make_col_proxy<'js>(
     Ok(proxy.into_value())
 }
 
-fn extract_col_from_val(val: &js::Value<'_>) -> Option<Vector2> {
+fn extract_col_from_val(val: &js::Value<'_>) -> Option<Vector3> {
     let obj = val.as_object()?;
     let x: f32 = obj.get("x").ok()?;
     let y: f32 = obj.get("y").ok()?;
-    Some(Vector2::new(x, y))
+    let z: f32 = obj.get("z").ok()?;
+    Some(Vector3::new(x, y, z))
 }

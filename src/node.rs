@@ -5,7 +5,9 @@ use crate::proxy_deps::ProxyDeps;
 use gdjs::converters::{godot_variant_to_js, js_to_gd_args, js_to_godot_variant};
 use gdjs::proxy_rect::create_rect2_proxy;
 use gdjs::proxy_transform::create_transform2d_proxy;
+use gdjs::proxy_transform3::create_transform3d_proxy;
 use gdjs::proxy_vec::create_vector2_proxy;
+use gdjs::proxy_vec3::create_vector3_proxy;
 use gdjs::util::{check_alive_handle, gd_alive_handle};
 use gdjs::util::{cache_fn_key, cache_key, get_cached, with_cache};
 use js_core::utils::extract_trace;
@@ -206,6 +208,18 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
             if prop_variant.try_to::<Transform2D>().is_ok() {
                 return with_cache(&target_obj, &cache_prop_name, || {
                     create_transform2d_proxy(&ctx, node.clone(), string_name.clone())
+                });
+            }
+
+            if prop_variant.try_to::<Vector3>().is_ok() {
+                return with_cache(&target_obj, &cache_prop_name, || {
+                    create_vector3_proxy(&ctx, node.clone(), string_name.clone())
+                });
+            }
+
+            if prop_variant.try_to::<Transform3D>().is_ok() {
+                return with_cache(&target_obj, &cache_prop_name, || {
+                    create_transform3d_proxy(&ctx, node.clone(), string_name.clone())
                 });
             }
 
@@ -448,6 +462,14 @@ fn make_set_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
                 return false;
             }
             if node.get(&string_name).try_to::<Transform2D>().is_ok() {
+                godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
+                return false;
+            }
+            if node.get(&string_name).try_to::<Vector3>().is_ok() {
+                godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
+                return false;
+            }
+            if node.get(&string_name).try_to::<Transform3D>().is_ok() {
                 godot_error!("Mutate of {} is forbidden\n{}", prop, extract_trace(&ctx));
                 return false;
             }

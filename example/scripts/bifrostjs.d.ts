@@ -153,8 +153,24 @@ declare class Rect2 {
 
 // ===== Маршаллинг типы =====
 
-type Vector3 = unknown      // @TODO: Vector3 marshalling
-type Transform3D = unknown  // @TODO: Transform3D marshalling
+declare class Vector3 {
+  constructor(x?: number, y?: number, z?: number)
+  x: number
+  y: number
+  z: number
+  set(x: number, y: number, z: number): void
+  add(x: number, y: number, z: number): void
+  length(): number
+}
+
+declare class Transform3D {
+  constructor(xx: number, xy: number, xz: number, yx: number, yy: number, yz: number, zx: number, zy: number, zz: number, ox: number, oy: number, oz: number)
+  xx: number; xy: number; xz: number
+  yx: number; yy: number; yz: number
+  zx: number; zy: number; zz: number
+  ox: number; oy: number; oz: number
+  set_origin(x: number, y: number, z: number): void
+}
 
 declare class Transform2D {
   constructor(xx: number, xy: number, yx: number, yy: number, ox: number, oy: number)

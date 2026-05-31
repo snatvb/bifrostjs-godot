@@ -3,7 +3,7 @@ use js_core::js::{self, IntoJs};
 
 use crate::util::gd_alive_handle;
 
-pub fn create_vector2_proxy<'js>(
+pub fn create_vector3_proxy<'js>(
     ctx: &js::Ctx<'js>,
     gdobject: Gd<godot::prelude::Object>,
     prop_name: StringName,
@@ -11,7 +11,7 @@ pub fn create_vector2_proxy<'js>(
     let gdnode = match gdobject.try_cast::<Node>() {
         Ok(n) => n,
         Err(_) => {
-            return Err(ctx.throw("Vector2 proxy: not a Node".into_js(ctx)?));
+            return Err(ctx.throw("Vector3 proxy: not a Node".into_js(ctx)?));
         }
     };
     let vec_target = js::Object::new(ctx.clone())?;
@@ -21,7 +21,10 @@ pub fn create_vector2_proxy<'js>(
     let prop_get = prop_name.clone();
     let get = js::Function::new(
         ctx.clone(),
-        move |ctx: js::Ctx<'js>, _target: js::Object<'js>, prop: String| -> js::Result<js::Value<'js>> {
+        move |ctx: js::Ctx<'js>,
+              _target: js::Object<'js>,
+              prop: String|
+              -> js::Result<js::Value<'js>> {
             let alive = node_get.is_instance_valid();
             if prop == "is_alive" {
                 return Ok(js::Value::new_bool(ctx.clone(), alive));
@@ -30,15 +33,18 @@ pub fn create_vector2_proxy<'js>(
             gd_alive_handle(&ctx, alive)?;
 
             let current_val = node_get.get(&prop_get);
-            let v2 = match current_val.try_to::<Vector2>() {
+            let v3 = match current_val.try_to::<Vector3>() {
                 Ok(v) => v,
                 Err(_) => {
-                    return Err(ctx.throw("Vector2 proxy: cannot read Godot Vector2".into_js(&ctx)?));
+                    return Err(
+                        ctx.throw("Vector3 proxy: cannot read Godot Vector3".into_js(&ctx)?)
+                    );
                 }
             };
             let res = match prop.as_str() {
-                "x" => v2.x,
-                "y" => v2.y,
+                "x" => v3.x,
+                "y" => v3.y,
+                "z" => v3.z,
                 _ => 0.0,
             };
             Ok(js::Value::new_number(ctx, res as f64))
@@ -55,28 +61,35 @@ pub fn create_vector2_proxy<'js>(
                 return false;
             }
             let current_val = node_set.get(&prop_set);
-            let Ok(mut v2) = current_val.try_to::<Vector2>() else {
+            let Ok(mut v3) = current_val.try_to::<Vector3>() else {
                 let _ = ctx.throw(
-                    js::String::from_str(ctx.clone(), "Vector2 proxy: cannot read Godot Vector2 for mutation")
-                        .unwrap()
-                        .into_value(),
+                    js::String::from_str(
+                        ctx.clone(),
+                        "Vector3 proxy: cannot read Godot Vector3 for mutation",
+                    )
+                    .unwrap()
+                    .into_value(),
                 );
                 return false;
             };
             match prop.as_str() {
-                "x" => v2.x = val,
-                "y" => v2.y = val,
+                "x" => v3.x = val,
+                "y" => v3.y = val,
+                "z" => v3.z = val,
                 _ => {
                     let _ = ctx.throw(
-                        js::String::from_str(ctx.clone(), format!("Vector2 proxy: unknown property '{}'", prop).as_str())
-                            .unwrap()
-                            .into_value(),
+                        js::String::from_str(
+                            ctx.clone(),
+                            format!("Vector3 proxy: unknown property '{}'", prop).as_str(),
+                        )
+                        .unwrap()
+                        .into_value(),
                     );
                     return false;
                 }
             }
             let mut node_set = node_set.clone();
-            node_set.set(&prop_set, &Variant::from(v2));
+            node_set.set(&prop_set, &Variant::from(v3));
             true
         },
     )?;
