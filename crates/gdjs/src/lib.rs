@@ -1,16 +1,8 @@
-pub mod colors;
 pub mod console;
 pub mod converters;
 pub mod input;
 pub mod modules;
 mod prelude;
-pub mod proxy_rect;
-pub mod proxy_transform;
-pub mod proxy_transform3;
-pub mod proxy_vec;
-pub mod proxy_vec3;
-pub mod rect2;
-pub mod transform2d;
-pub mod transform3d;
+pub mod proxy;
+pub mod types;
 pub mod util;
-pub mod vector3;

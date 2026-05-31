@@ -3,7 +3,7 @@ use js_core::js::{self, IntoJs};
 
 use crate::util::{col_cache_key, gd_alive_handle, peek_cache, with_cache};
 
-pub fn create_transform2d_proxy<'js>(
+pub fn create<'js>(
     ctx: &js::Ctx<'js>,
     gdobject: Gd<godot::prelude::Object>,
     prop_name: StringName,

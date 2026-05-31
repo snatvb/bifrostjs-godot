@@ -3,7 +3,7 @@ use js_core::js::{self, IntoJs};
 
 use crate::util::gd_alive_handle;
 
-pub fn create_vector3_proxy<'js>(
+pub fn create<'js>(
     ctx: &js::Ctx<'js>,
     gdobject: Gd<godot::prelude::Object>,
     prop_name: StringName,

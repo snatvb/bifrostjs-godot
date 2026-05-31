@@ -3,11 +3,7 @@ use crate::manager_context::JsSignalMeta;
 use crate::prelude::*;
 use crate::proxy_deps::ProxyDeps;
 use gdjs::converters::{godot_variant_to_js, js_to_gd_args, js_to_godot_variant};
-use gdjs::proxy_rect::create_rect2_proxy;
-use gdjs::proxy_transform::create_transform2d_proxy;
-use gdjs::proxy_transform3::create_transform3d_proxy;
-use gdjs::proxy_vec::create_vector2_proxy;
-use gdjs::proxy_vec3::create_vector3_proxy;
+use gdjs::proxy;
 use gdjs::util::{cache_fn_key, cache_key, get_cached, with_cache};
 use gdjs::util::{check_alive_handle, gd_alive_handle};
 use js_core::utils::extract_trace;
@@ -195,31 +191,31 @@ fn make_get_trap<'js>(deps: &ProxyDeps<'js>) -> js::Result<js::Function<'js>> {
 
             if prop_variant.try_to::<Vector2>().is_ok() {
                 return with_cache(&target_obj, &cache_prop_name, || {
-                    create_vector2_proxy(&ctx, node.clone(), string_name.clone())
+                    proxy::vec2::create(&ctx, node.clone(), string_name.clone())
                 });
             }
 
             if prop_variant.try_to::<Rect2>().is_ok() {
                 return with_cache(&target_obj, &cache_prop_name, || {
-                    create_rect2_proxy(&ctx, node.clone(), string_name.clone())
+                    proxy::rect2::create(&ctx, node.clone(), string_name.clone())
                 });
             }
 
             if prop_variant.try_to::<Transform2D>().is_ok() {
                 return with_cache(&target_obj, &cache_prop_name, || {
-                    create_transform2d_proxy(&ctx, node.clone(), string_name.clone())
+                    proxy::transform2d::create(&ctx, node.clone(), string_name.clone())
                 });
             }
 
             if prop_variant.try_to::<Vector3>().is_ok() {
                 return with_cache(&target_obj, &cache_prop_name, || {
-                    create_vector3_proxy(&ctx, node.clone(), string_name.clone())
+                    proxy::vec3::create(&ctx, node.clone(), string_name.clone())
                 });
             }
 
             if prop_variant.try_to::<Transform3D>().is_ok() {
                 return with_cache(&target_obj, &cache_prop_name, || {
-                    create_transform3d_proxy(&ctx, node.clone(), string_name.clone())
+                    proxy::transform3d::create(&ctx, node.clone(), string_name.clone())
                 });
             }
 

@@ -1,10 +1,5 @@
-use crate::colors::*;
 use crate::prelude::*;
-use crate::rect2::*;
-use crate::transform2d::*;
-use crate::transform3d::*;
-use crate::vector3::*;
-use js_core::vectors::*;
+use crate::types::*;
 
 pub fn js_to_godot_variant(val: js::Value<'_>) -> js::Result<Variant> {
     match val.type_of() {
