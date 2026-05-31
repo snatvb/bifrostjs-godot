@@ -5,7 +5,7 @@ declare module "bifrostjs" {
   export default engine
 }
 
-// ===== Globals (provided by Rust runtime) =====
+// Globals
 
 declare var console: {
   log(...args: any[]): void
@@ -14,8 +14,6 @@ declare var console: {
   info(...args: any[]): void
   trace(...args: any[]): void
 }
-
-// ===== Classes =====
 
 declare class Vector2 {
   constructor(x?: number, y?: number)
@@ -36,14 +34,10 @@ declare class Color {
   toString(): string
 }
 
-// ===== Script contract =====
-
 interface Script {
   onReady?(): void
   onProcess?(delta: number): void
 }
-
-// ===== Engine =====
 
 interface Engine {
   isKeyPressed(key: number): boolean
@@ -140,8 +134,6 @@ interface Keys {
   readonly F12: 4194335
 }
 
-// ===== Маршаллинг типы =====
-
 declare class Rect2 {
   constructor(x?: number, y?: number, width?: number, height?: number)
   x: number
@@ -150,8 +142,6 @@ declare class Rect2 {
   height: number
   set(x: number, y: number, width: number, height: number): void
 }
-
-// ===== Маршаллинг типы =====
 
 declare class Vector3 {
   constructor(x?: number, y?: number, z?: number)
@@ -183,8 +173,6 @@ declare class Transform2D {
   set_origin(x: number, y: number): void
 }
 
-// ===== GodotObjectBase =====
-
 interface GodotObjectBase {
   readonly gd_instance_id: number
   readonly is_alive: boolean
@@ -199,8 +187,6 @@ interface GodotObjectBase {
   register_signal(signal_name: string): void
   emit_signal(signal_name: string, ...args: any[]): void
 }
-
-// ===== GodotNodeBase =====
 
 interface GodotNodeBase extends GodotObjectBase {
   // lifecycle
@@ -295,8 +281,6 @@ interface GodotNodeBase extends GodotObjectBase {
   is_class<T extends string>(name: T): this is GodotNodeByClass<T>
 }
 
-// ===== CanvasItemBase =====
-
 interface CanvasItemBase extends GodotNodeBase {
   visible: boolean
   modulate: Color
@@ -330,8 +314,6 @@ interface CanvasItemBase extends GodotNodeBase {
 
   set_instance_shader_parameter(name: string, value: any): void
 }
-
-// ===== Node2DBase =====
 
 interface Node2DBase extends CanvasItemBase {
   position: Vector2
@@ -370,8 +352,6 @@ interface Node2DBase extends CanvasItemBase {
   move_local_y(delta: number, scaled?: boolean): void
   get_relative_transform_to_parent(parent: GodotNode): Transform2D
 }
-
-// ===== ControlBase =====
 
 interface ControlBase extends CanvasItemBase {
   position: Vector2
@@ -415,8 +395,6 @@ interface ControlBase extends CanvasItemBase {
   get_begin(): Vector2
   get_end(): Vector2
 }
-
-// ===== Node3DBase =====
 
 interface Node3DBase extends GodotNodeBase {
   position: Vector3
@@ -470,8 +448,6 @@ interface Node3DBase extends GodotNodeBase {
 //            SPECIFIC TYPES
 // ==========================================
 
-// --- Sprite2D ---
-
 interface Sprite2D extends Node2DBase {
   class_type: "Sprite2D"
 
@@ -492,8 +468,6 @@ interface Sprite2D extends Node2DBase {
   is_pixel_opaque(pos: Vector2): boolean
 }
 
-// --- AnimatedSprite2D ---
-
 interface AnimatedSprite2D extends Node2DBase {
   class_type: "AnimatedSprite2D"
 
@@ -509,8 +483,6 @@ interface AnimatedSprite2D extends Node2DBase {
   pause(): void
   is_playing(): boolean
 }
-
-// --- CharacterBody2D ---
 
 interface CharacterBody2D extends Node2DBase {
   class_type: "CharacterBody2D"
@@ -551,8 +523,6 @@ interface CharacterBody2D extends Node2DBase {
   apply_floor_snap(): void
 }
 
-// --- RigidBody2D ---
-
 interface RigidBody2D extends Node2DBase {
   class_type: "RigidBody2D"
 
@@ -586,16 +556,12 @@ interface RigidBody2D extends Node2DBase {
   get_colliding_bodies(): GodotNode[]
 }
 
-// --- StaticBody2D ---
-
 interface StaticBody2D extends Node2DBase {
   class_type: "StaticBody2D"
 
   constant_linear_velocity: Vector2
   constant_angular_velocity: number
 }
-
-// --- Area2D ---
 
 interface Area2D extends Node2DBase {
   class_type: "Area2D"
@@ -628,8 +594,6 @@ interface Area2D extends Node2DBase {
   overlaps_body(body: GodotNode): boolean
 }
 
-// --- CollisionShape2D ---
-
 interface CollisionShape2D extends Node2DBase {
   class_type: "CollisionShape2D"
 
@@ -637,8 +601,6 @@ interface CollisionShape2D extends Node2DBase {
   one_way_collision: boolean
   one_way_collision_margin: number
 }
-
-// --- CollisionPolygon2D ---
 
 interface CollisionPolygon2D extends Node2DBase {
   class_type: "CollisionPolygon2D"
@@ -649,8 +611,6 @@ interface CollisionPolygon2D extends Node2DBase {
   one_way_collision_margin: number
   polygon: Vector2[]
 }
-
-// --- Camera2D ---
 
 interface Camera2D extends Node2DBase {
   class_type: "Camera2D"
@@ -686,8 +646,6 @@ interface Camera2D extends Node2DBase {
   force_update_scroll(): void
 }
 
-// --- Timer ---
-
 interface Timer extends GodotNodeBase {
   class_type: "Timer"
 
@@ -700,8 +658,6 @@ interface Timer extends GodotNodeBase {
   stop(): void
   is_stopped(): boolean
 }
-
-// --- AnimationPlayer ---
 
 interface AnimationPlayer extends GodotNodeBase {
   class_type: "AnimationPlayer"
@@ -735,8 +691,6 @@ interface AnimationPlayer extends GodotNodeBase {
   get_playing_speed(): number
 }
 
-// --- AudioStreamPlayer2D ---
-
 interface AudioStreamPlayer2D extends Node2DBase {
   class_type: "AudioStreamPlayer2D"
 
@@ -758,8 +712,6 @@ interface AudioStreamPlayer2D extends Node2DBase {
   seek(seconds: number): void
 }
 
-// --- RayCast2D ---
-
 interface RayCast2D extends Node2DBase {
   class_type: "RayCast2D"
 
@@ -777,8 +729,6 @@ interface RayCast2D extends Node2DBase {
   get_collision_face_index(): number
   force_raycast_update(): void
 }
-
-// --- GPUParticles2D ---
 
 interface GPUParticles2D extends Node2DBase {
   class_type: "GPUParticles2D"
@@ -808,8 +758,6 @@ interface GPUParticles2D extends Node2DBase {
   set_emitting(emitting: boolean): void
 }
 
-// --- CPUParticles2D ---
-
 interface CPUParticles2D extends Node2DBase {
   class_type: "CPUParticles2D"
 
@@ -834,27 +782,19 @@ interface CPUParticles2D extends Node2DBase {
   set_emitting(emitting: boolean): void
 }
 
-// --- Node2D ---
-
 interface Node2D extends Node2DBase {
   class_type: "Node2D"
 }
-
-// --- Marker2D ---
 
 interface Marker2D extends Node2DBase {
   class_type: "Marker2D"
   gizmo_extents: number
 }
 
-// --- Path2D ---
-
 interface Path2D extends Node2DBase {
   class_type: "Path2D"
   curve: any
 }
-
-// --- PathFollow2D ---
 
 interface PathFollow2D extends Node2DBase {
   class_type: "PathFollow2D"
@@ -868,8 +808,6 @@ interface PathFollow2D extends Node2DBase {
   loop: boolean
 }
 
-// --- ParallaxBackground ---
-
 interface ParallaxBackground extends Node2DBase {
   class_type: "ParallaxBackground"
 
@@ -881,16 +819,12 @@ interface ParallaxBackground extends Node2DBase {
   scroll_limit_end: Vector2
 }
 
-// --- ParallaxLayer ---
-
 interface ParallaxLayer extends Node2DBase {
   class_type: "ParallaxLayer"
 
   motion_offset: Vector2
   motion_scale: Vector2
 }
-
-// --- TileMap ---
 
 interface TileMap extends Node2DBase {
   class_type: "TileMap"
@@ -911,8 +845,6 @@ interface TileMap extends Node2DBase {
   clear(): void
 }
 
-// --- TileMapLayer ---
-
 interface TileMapLayer extends Node2DBase {
   class_type: "TileMapLayer"
 
@@ -929,8 +861,6 @@ interface TileMapLayer extends Node2DBase {
   clear(): void
 }
 
-// --- VisibleOnScreenNotifier2D ---
-
 interface VisibleOnScreenNotifier2D extends Node2DBase {
   class_type: "VisibleOnScreenNotifier2D"
 
@@ -939,8 +869,6 @@ interface VisibleOnScreenNotifier2D extends Node2DBase {
   is_on_screen(): boolean
 }
 
-// --- VisibleOnScreenEnabler2D ---
-
 interface VisibleOnScreenEnabler2D extends Node2DBase {
   class_type: "VisibleOnScreenEnabler2D"
 
@@ -948,14 +876,10 @@ interface VisibleOnScreenEnabler2D extends Node2DBase {
   rect: Rect2
 }
 
-// --- MeshInstance2D ---
-
 interface MeshInstance2D extends Node2DBase {
   class_type: "MeshInstance2D"
   texture: GodotTexture | null
 }
-
-// --- NavigationAgent2D ---
 
 interface NavigationAgent2D extends Node2DBase {
   class_type: "NavigationAgent2D"
@@ -973,8 +897,6 @@ interface NavigationAgent2D extends Node2DBase {
   get_current_navigation_result(): any
 }
 
-// --- NavigationObstacle2D ---
-
 interface NavigationObstacle2D extends Node2DBase {
   class_type: "NavigationObstacle2D"
 
@@ -982,15 +904,11 @@ interface NavigationObstacle2D extends Node2DBase {
   velocity: Vector2
 }
 
-// --- NavigationRegion2D ---
-
 interface NavigationRegion2D extends Node2DBase {
   class_type: "NavigationRegion2D"
 
   enabled: boolean
 }
-
-// --- CanvasLayer ---
 
 interface CanvasLayer extends GodotNodeBase {
   class_type: "CanvasLayer"
@@ -1006,8 +924,6 @@ interface CanvasLayer extends GodotNodeBase {
 // ==========================================
 //            CONTROL TYPES
 // ==========================================
-
-// --- Control ---
 
 interface Control extends ControlBase {
   get_parent_area_size(): Vector2
@@ -1030,8 +946,6 @@ interface Control extends ControlBase {
   warp_mouse(position: Vector2): void
 }
 
-// --- Label ---
-
 interface Label extends Omit<Control, 'class_type'> {
   class_type: "Label"
 
@@ -1047,8 +961,6 @@ interface Label extends Omit<Control, 'class_type'> {
   get_visible_line_count(): number
 }
 
-// --- Button ---
-
 interface Button extends Omit<Control, 'class_type'> {
   class_type: "Button"
 
@@ -1058,8 +970,6 @@ interface Button extends Omit<Control, 'class_type'> {
   icon: GodotTexture | null
   icon_alignment: number
 }
-
-// --- TextureButton ---
 
 interface TextureButton extends Omit<Control, 'class_type'> {
   class_type: "TextureButton"
@@ -1076,8 +986,6 @@ interface TextureButton extends Omit<Control, 'class_type'> {
   ignore_texture_size: boolean
 }
 
-// --- TextureRect ---
-
 interface TextureRect extends Omit<Control, 'class_type'> {
   class_type: "TextureRect"
 
@@ -1088,15 +996,11 @@ interface TextureRect extends Omit<Control, 'class_type'> {
   flip_v: boolean
 }
 
-// --- ColorRect ---
-
 interface ColorRect extends Omit<Control, 'class_type'> {
   class_type: "ColorRect"
 
   color: Color
 }
-
-// --- RichTextLabel ---
 
 interface RichTextLabel extends Omit<Control, 'class_type'> {
   class_type: "RichTextLabel"
@@ -1114,8 +1018,6 @@ interface RichTextLabel extends Omit<Control, 'class_type'> {
   get_visible_line_count(): number
   scroll_to_line(line: number): void
 }
-
-// --- LineEdit ---
 
 interface LineEdit extends Omit<Control, 'class_type'> {
   class_type: "LineEdit"
@@ -1140,8 +1042,6 @@ interface LineEdit extends Omit<Control, 'class_type'> {
   has_selection(): boolean
 }
 
-// --- OptionButton ---
-
 interface OptionButton extends Omit<Button, 'class_type'> {
   class_type: "OptionButton"
 
@@ -1155,8 +1055,6 @@ interface OptionButton extends Omit<Button, 'class_type'> {
   get_popup(): any
 }
 
-// --- CheckButton / CheckBox ---
-
 interface CheckButton extends Omit<Button, 'class_type'> {
   class_type: "CheckButton"
 }
@@ -1164,8 +1062,6 @@ interface CheckButton extends Omit<Button, 'class_type'> {
 interface CheckBox extends Omit<Button, 'class_type'> {
   class_type: "CheckBox"
 }
-
-// --- SpinBox ---
 
 interface SpinBox extends Omit<Control, 'class_type'> {
   class_type: "SpinBox"
@@ -1178,8 +1074,6 @@ interface SpinBox extends Omit<Control, 'class_type'> {
   suffix: string
   editable: boolean
 }
-
-// --- HSlider / VSlider ---
 
 interface HSlider extends Omit<Control, 'class_type'> {
   class_type: "HSlider"
@@ -1201,8 +1095,6 @@ interface VSlider extends Omit<Control, 'class_type'> {
   tick_count: number
 }
 
-// --- ProgressBar ---
-
 interface ProgressBar extends Omit<Control, 'class_type'> {
   class_type: "ProgressBar"
 
@@ -1212,15 +1104,11 @@ interface ProgressBar extends Omit<Control, 'class_type'> {
   show_percentage: boolean
 }
 
-// --- LinkButton ---
-
 interface LinkButton extends Omit<Button, 'class_type'> {
   class_type: "LinkButton"
 
   uri: string
 }
-
-// --- PopupMenu ---
 
 interface PopupMenu extends Omit<Control, 'class_type'> {
   class_type: "PopupMenu"
@@ -1236,8 +1124,6 @@ interface PopupMenu extends Omit<Control, 'class_type'> {
   is_item_checked(index: number): boolean
   set_item_checked(index: number, checked: boolean): void
 }
-
-// --- ItemList ---
 
 interface ItemList extends Omit<Control, 'class_type'> {
   class_type: "ItemList"
@@ -1260,8 +1146,6 @@ interface ItemList extends Omit<Control, 'class_type'> {
   get_item_count(): number
 }
 
-// --- Tree ---
-
 interface Tree extends Omit<Control, 'class_type'> {
   class_type: "Tree"
 
@@ -1274,16 +1158,12 @@ interface Tree extends Omit<Control, 'class_type'> {
   get_selected(): any
 }
 
-// --- TabContainer ---
-
 interface TabContainer extends Omit<Control, 'class_type'> {
   class_type: "TabContainer"
 
   current_tab: number
   tabs_count: number
 }
-
-// --- Window ---
 
 interface Window extends Omit<Control, 'class_type'> {
   class_type: "Window"
@@ -1293,8 +1173,6 @@ interface Window extends Omit<Control, 'class_type'> {
 
   close_request(): void
 }
-
-// --- Container ---
 
 interface Container extends Omit<Control, 'class_type'> {
   class_type: "Container"
