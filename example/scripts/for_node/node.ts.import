@@ -1,0 +1,14 @@
+[remap]
+
+importer="my_project.js_file_importer"
+type="Resource"
+uid="uid://dc64gj16djjsb"
+path="res://.godot/imported/node.ts-74a516ba83596c1a586722ee90589f93.res"
+
+[deps]
+
+source_file="res://scripts/for_node/node.ts"
+dest_files=["res://.godot/imported/node.ts-74a516ba83596c1a586722ee90589f93.res"]
+
+[params]
+

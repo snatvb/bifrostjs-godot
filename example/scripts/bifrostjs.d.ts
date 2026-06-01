@@ -46,7 +46,7 @@ interface Script {
 interface Engine {
   isKeyPressed(key: number): boolean
   createNode<T extends string>(class_name: T): GodotNodeByClass<T> | undefined
-  instantiate(path: string): GodotNode | undefined
+  instantiate<T = GodotNode>(path: string): T
   readonly input: Input
   readonly Keys: Keys
 }
@@ -178,9 +178,9 @@ declare class Transform2D {
 }
 
 interface GodotObjectBase {
+  name: string
   readonly gd_instance_id: number
   readonly is_alive: boolean
-  readonly name: string
   readonly class_type: string
   readonly id: number
   readonly parent: GodotNode | null

@@ -1,10 +1,8 @@
 export default class {
-  jsnode: GodotNode
   node: Node2DBase
   id = 0
-  constructor(node: GodotNode) {
-    this.jsnode = node
-    this.node = node.parent! as Node2DBase
+  constructor(private jsnode: GodotNode) {
+    this.node = jsnode.parent! as Node2DBase
   }
 
   onReady() {

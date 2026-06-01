@@ -12,4 +12,4 @@ region_enabled = true
 region_rect = Rect2(0, 0, 64, 64)
 
 [node name="JsNode" type="JsNode" parent="." unique_id=980241743]
-script_path = "uid://dxo4e8vonu3js"
+script_path = "uid://dn4gn4cpevfjd"

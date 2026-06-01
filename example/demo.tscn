@@ -14,7 +14,7 @@ position = Vector2(389, 254)
 texture = ExtResource("1_5hfv0")
 
 [node name="JsNode" type="JsNode" parent="JsRuntimeManager/Icon" unique_id=1141582601]
-script_path = "uid://djj8v2xk6g7rq"
+script_path = "uid://dc64gj16djjsb"
 
 [node name="Node" type="Node" parent="JsRuntimeManager/Icon/JsNode" unique_id=1776341266]
 script = ExtResource("2_0bhed")
